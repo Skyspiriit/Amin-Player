@@ -1,0 +1,167 @@
+{
+  "mode": "tv720",
+  "slug": "the-forbidden-fruit",
+  "snapshots": [
+    {
+      "label": "Fully loaded series overview at 1280x720",
+      "image": "10-tv720-series-ready.png",
+      "path": "/tvshows/the-forbidden-fruit/",
+      "htmlReady": "complete",
+      "enhanced": true,
+      "viewport": [
+        640,
+        360
+      ],
+      "visualScale": 1,
+      "browserPixelRatio": 2,
+      "scrollSize": [
+        640,
+        360
+      ],
+      "scroll": [
+        0,
+        0
+      ],
+      "rootOverflow": "hidden",
+      "metaViewport": "width=device-width, initial-scale=1",
+      "overview": true,
+      "picker": false,
+      "poster": [
+        52.2,
+        160,
+        74,
+        110
+      ],
+      "posterLoaded": true,
+      "body": [
+        151.8,
+        93.8,
+        436,
+        242.4
+      ],
+      "panel": [
+        25.6,
+        80.8,
+        588.8,
+        268.4
+      ],
+      "allButtonsFit": true,
+      "synopsis": {
+        "chars": 728,
+        "font": "14px",
+        "lineHeight": "19.6px",
+        "canvasHeight": 78,
+        "scrollHeight": 196,
+        "clamp": "4"
+      },
+      "visibleEpisodeCount": 0,
+      "seasons": [],
+      "title": "میوه ی ممنوعه",
+      "focusAppControl": "fl-detail-play",
+      "focusOutline": "4px",
+      "provider": {
+        "originalSingle": false,
+        "originalHeaderVisible": false,
+        "fakePlayVisible": false,
+        "originalInfoVisible": false,
+        "originalPosters": 0,
+        "ratings": 0,
+        "sharing": 0,
+        "linksTables": 0,
+        "visibleLinksTables": 0,
+        "desktopNavbar": false,
+        "nativeHandoffForm": false,
+        "hoveredWebsiteControl": false
+      }
+    },
+    {
+      "label": "Same overview with D-pad focus at 1280x720",
+      "image": "11-tv720-series-focus.png",
+      "path": "/tvshows/the-forbidden-fruit/",
+      "htmlReady": "complete",
+      "enhanced": true,
+      "viewport": [
+        640,
+        360
+      ],
+      "visualScale": 1,
+      "browserPixelRatio": 2,
+      "scrollSize": [
+        640,
+        360
+      ],
+      "scroll": [
+        0,
+        0
+      ],
+      "rootOverflow": "hidden",
+      "metaViewport": "width=device-width, initial-scale=1",
+      "overview": true,
+      "picker": false,
+      "poster": [
+        52.2,
+        160,
+        74,
+        110
+      ],
+      "posterLoaded": true,
+      "body": [
+        151.8,
+        93.8,
+        436,
+        242.4
+      ],
+      "panel": [
+        25.6,
+        80.8,
+        588.8,
+        268.4
+      ],
+      "allButtonsFit": true,
+      "synopsis": {
+        "chars": 728,
+        "font": "14px",
+        "lineHeight": "19.6px",
+        "canvasHeight": 78,
+        "scrollHeight": 196,
+        "clamp": "4"
+      },
+      "visibleEpisodeCount": 0,
+      "seasons": [],
+      "title": "میوه ی ممنوعه",
+      "focusAppControl": "fl-series-all",
+      "focusOutline": "4px",
+      "provider": {
+        "originalSingle": false,
+        "originalHeaderVisible": false,
+        "fakePlayVisible": false,
+        "originalInfoVisible": false,
+        "originalPosters": 0,
+        "ratings": 0,
+        "sharing": 0,
+        "linksTables": 0,
+        "visibleLinksTables": 0,
+        "desktopNavbar": false,
+        "nativeHandoffForm": false,
+        "hoveredWebsiteControl": false
+      }
+    }
+  ],
+  "events": [
+    "/home",
+    "/tvshows/the-forbidden-fruit/"
+  ],
+  "apiTypes": [
+    {
+      "type": "Document",
+      "status": 200,
+      "fromDiskCache": false
+    },
+    {
+      "type": "Fetch",
+      "status": 200,
+      "fromDiskCache": false
+    }
+  ],
+  "exceptions": {}
+}
