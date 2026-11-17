@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Amin player</string>
+    <string name="loading">در حال بارگذاری…</string>
+    <string name="load_error">صفحه باز نشد. اتصال اینترنت را بررسی کنید و دوباره امتحان کنید.</string>
+    <string name="retry">تلاش دوباره</string>
+    <string name="home">خانه</string>
+    <string name="unavailable_link">این پیوند در برنامه باز نمی‌شود.</string>
+    <string name="renderer_error">صفحه بسته شد. برای باز کردن دوباره تلاش کنید.</string>
+    <string name="update_ready">نسخهٔ تازه آماده است</string>
+    <string name="update_instructions">در صفحهٔ نصب Android، به‌روزرسانی را تأیید کنید.</string>
+    <string name="update_action">نصب به‌روزرسانی</string>
+    <string name="update_later">بعداً</string>
+    <string name="update_error">صفحهٔ نصب باز نشد. برنامه را دوباره باز کنید و تلاش کنید.</string>
+    <string name="update_permission_title">اجازهٔ نصب هنوز فعال نیست</string>
+    <string name="update_permission_instructions">در تنظیمات، نصب را برای Amin player در همین نمایه مجاز کنید. در نمایهٔ اصلی تلویزیون، گزینهٔ بدون نشان کیف را انتخاب کنید. بعد دکمهٔ بازگشت را بزنید.</string>
+    <string name="update_open_settings">باز کردن تنظیمات</string>
+    <string name="update_download_error">دریافت به‌روزرسانی انجام نشد. اتصال اینترنت را بررسی کنید و برنامه را دوباره باز کنید.</string>
+    <string name="update_invalid">فایل به‌روزرسانی معتبر یا سازگار نیست. نسخهٔ فعلی قابل استفاده است.</string>
+    <string name="update_current">Amin player به‌روز است.</string>
+</resources>
