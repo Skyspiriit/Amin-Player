@@ -220,7 +220,7 @@ class MainActivity : Activity() {
 
     private fun startPlayback(
         progress: WatchProgress,
-        fullscreen: Boolean = false,
+        fullscreen: Boolean = true,
         playing: Boolean = true,
         requestedQuality: Int? = null,
     ) {
@@ -426,13 +426,13 @@ class MainActivity : Activity() {
                 } ?: return
                 finishedEpisode = false
                 startPlayback(WatchProgress(target.asWatchItem(item.poster, item.series), 0, 0, quality),
-                    fullscreen = message.optBoolean("fullscreen"))
+                    fullscreen = true)
             }
             "next" -> if (resumed && hasWindowFocus() && finishedEpisode) {
                 val next = item.next ?: return
                 finishedEpisode = false
                 startPlayback(WatchProgress(next.asWatchItem(item.poster, item.series), 0, 0, quality),
-                    fullscreen = message.optBoolean("fullscreen"))
+                    fullscreen = true)
             }
         }
     }
@@ -836,7 +836,7 @@ class MainActivity : Activity() {
     companion object {
         private const val HOME = "https://farsiland.com/home"
         private val THEMES = listOf("midnight", "saffron", "turquoise", "pomegranate", "garden",
-            "galaxy", "forest", "nights", "ice", "dragon")
+            "galaxy", "forest", "nights", "ice", "dragon", "castle", "orbit", "theatre", "rose", "highlands")
         private val SELECT_KEYS = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BUTTON_A,
             KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER)
 

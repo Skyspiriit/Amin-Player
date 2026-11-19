@@ -107,6 +107,52 @@ html[data-fl-tv][data-fl-theme="garden"] {
     --fl-on-accent: #06301b; --fl-on-focus: #2a2200; --fl-glow: #ffe18066; --fl-scrim: #0c1712ef;
 }
 
+/* Genre themes: static vector art adds no requests or animation while browsing. */
+html[data-fl-tv][data-fl-theme="castle"] {
+    --fl-bg: #110e25; --fl-panel: #211c3b; --fl-raised: #362854; --fl-bar: #19142e; --fl-line: #5b477b;
+    --fl-text: #fff8f2; --fl-muted: #cfcbd6; --fl-accent: #e5c28e; --fl-focus: #f5e2b8;
+    --fl-on-accent: #291b3e; --fl-on-focus: #291b3e; --fl-glow: #f5e2b855; --fl-scrim: #110e25ef;
+    --fl-surface: transparent;
+    --fl-art: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201600%20900%22%3E%3Cg%20fill%3D%22%23b49ada%22%20opacity%3D%22.17%22%3E%3Cpath%20d%3D%22M0%20900V790l170-42%20150%2030%20190-65%20180%2050%20220-40%20170%2055%20230-70%20290%2060v132z%22%2F%3E%3Cpath%20d%3D%22M1060%20780V530h35v-35h30v35h35v250zm190%200V490h35v-35h30v35h35v290zm-110%200V600h150v180z%22%2F%3E%3Cpath%20d%3D%22m1055%20495%2065-115%2065%20115zm190-40%2065-115%2065%20115z%22%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%221240%22%20cy%3D%22200%22%20r%3D%2282%22%20fill%3D%22%23f5e2b8%22%20opacity%3D%22.12%22%2F%3E%3Cpath%20d%3D%22M1210%20120a80%2080%200%201%200%2080%20125%2082%2082%200%200%201-80-125%22%20fill%3D%22%23f5e2b8%22%20opacity%3D%22.1%22%2F%3E%3C%2Fsvg%3E"), radial-gradient(ellipse at 80% 22%, #9270c530, transparent 55%);
+    --fl-art-size: 100vw 100vh, 100vw 100vh;
+}
+
+html[data-fl-tv][data-fl-theme="orbit"] {
+    --fl-bg: #071827; --fl-panel: #102936; --fl-raised: #17364b; --fl-bar: #0b202d; --fl-line: #315c70;
+    --fl-text: #fff8f2; --fl-muted: #cfcbd6; --fl-accent: #66e6e0; --fl-focus: #c5a0ff;
+    --fl-on-accent: #18253b; --fl-on-focus: #18253b; --fl-glow: #c5a0ff55; --fl-scrim: #071827ef;
+    --fl-surface: transparent;
+    --fl-art: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201600%20900%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%2366e6e0%22%20opacity%3D%22.14%22%3E%3Ccircle%20cx%3D%221280%22%20cy%3D%22250%22%20r%3D%22130%22%20stroke-width%3D%222%22%2F%3E%3Cellipse%20cx%3D%221280%22%20cy%3D%22250%22%20rx%3D%22250%22%20ry%3D%2265%22%20stroke-width%3D%224%22%20transform%3D%22rotate(-25%201280%20250)%22%2F%3E%3Cpath%20d%3D%22M0%20820h1600M0%20760h1600M0%20700h1600M0%20640h1600M0%20580h1600M800%20470%200%20900m800-430L320%20900m480-430L640%20900m160-430%20160%20430m-160-430%20480%20430m-480-430%20800%20430%22%20stroke-width%3D%222%22%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%221280%22%20cy%3D%22250%22%20r%3D%22118%22%20fill%3D%22%23c5a0ff%22%20opacity%3D%22.07%22%2F%3E%3C%2Fsvg%3E"), radial-gradient(ellipse at 80% 25%, #7168c52b, transparent 50%);
+    --fl-art-size: 100vw 100vh, 100vw 100vh;
+}
+
+html[data-fl-tv][data-fl-theme="theatre"] {
+    --fl-bg: #170e16; --fl-panel: #2d1722; --fl-raised: #422330; --fl-bar: #21121b; --fl-line: #704352;
+    --fl-text: #fff8f2; --fl-muted: #cfcbd6; --fl-accent: #e6b785; --fl-focus: #f6d5b3;
+    --fl-on-accent: #341b20; --fl-on-focus: #341b20; --fl-glow: #f6d5b355; --fl-scrim: #170e16ef;
+    --fl-surface: transparent;
+    --fl-art: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201600%20900%22%3E%3Cg%20fill%3D%22%23a25265%22%20opacity%3D%22.13%22%3E%3Cpath%20d%3D%22M0%200h270Q220%20340%200%20560zm1600%200h-270q50%20340%20270%20560z%22%2F%3E%3Cpath%20d%3D%22M0%200h1600v38q-200%20150-400%200-200%20150-400%200-200%20150-400%200Q200%20188%200%2038z%22%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D%22%23f6d5b3%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20opacity%3D%22.08%22%3E%3Cpath%20d%3D%22M40%200Q180%20330%200%20600M100%200Q240%20300%200%20650m1560-650q-140%20330%2040%20600m-100-600q-140%20300%20100%20650%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), conic-gradient(from 150deg at 50% 0%, transparent 0 5%, #e6b78512 6% 12%, transparent 13% 87%, #e6b78512 88% 94%, transparent 95%);
+    --fl-art-size: 100vw 100vh, 100vw 100vh;
+}
+
+html[data-fl-tv][data-fl-theme="rose"] {
+    --fl-bg: #24111d; --fl-panel: #3b2030; --fl-raised: #523044; --fl-bar: #2f1726; --fl-line: #7c5065;
+    --fl-text: #fff8f2; --fl-muted: #cfcbd6; --fl-accent: #ffb9cb; --fl-focus: #ffe0b3;
+    --fl-on-accent: #40152a; --fl-on-focus: #40152a; --fl-glow: #ffe0b355; --fl-scrim: #24111def;
+    --fl-surface: transparent;
+    --fl-art: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201600%20900%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23ffb9cb%22%20stroke-width%3D%223%22%20opacity%3D%22.13%22%3E%3Cpath%20d%3D%22M1250%20360c-200-115-130-260-35-170%2095-90%20165%2055-35%20170z%22%20transform%3D%22translate(0%20100)%22%2F%3E%3Cpath%20d%3D%22M240%20250c-110-68-70-140-20-95%2050-45%2090%2027-20%2095z%22%2F%3E%3Ccircle%20cx%3D%221380%22%20cy%3D%22720%22%20r%3D%22115%22%2F%3E%3Ccircle%20cx%3D%221380%22%20cy%3D%22720%22%20r%3D%22155%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), radial-gradient(ellipse at 12% 88%, #db749b20, transparent 55%);
+    --fl-art-size: 100vw 100vh, 100vw 100vh;
+}
+
+html[data-fl-tv][data-fl-theme="highlands"] {
+    --fl-bg: #0e201c; --fl-panel: #19382d; --fl-raised: #254b3c; --fl-bar: #132a23; --fl-line: #446e57;
+    --fl-text: #fff8f2; --fl-muted: #cfcbd6; --fl-accent: #afdf9e; --fl-focus: #ffe3a0;
+    --fl-on-accent: #233618; --fl-on-focus: #233618; --fl-glow: #ffe3a055; --fl-scrim: #0e201cef;
+    --fl-surface: transparent;
+    --fl-art: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201600%20900%22%3E%3Ccircle%20cx%3D%221230%22%20cy%3D%22240%22%20r%3D%22100%22%20fill%3D%22%23ffe3a0%22%20opacity%3D%22.09%22%2F%3E%3Cpath%20d%3D%22m0%20850%20310-330%20250%20260%20350-410%20320%20350%20200-230%20170%20180v230H0z%22%20fill%3D%22%236ba47f%22%20opacity%3D%22.1%22%2F%3E%3Cpath%20d%3D%22m0%20900%20290-230%20290%20190%20310-250%20310%20230%20200-120%20200%20180z%22%20fill%3D%22%23afdf9e%22%20opacity%3D%22.09%22%2F%3E%3Cg%20fill%3D%22%23081a13%22%20opacity%3D%22.45%22%3E%3Cpath%20d%3D%22m130%20780%2055-120%2055%20120h-30v65h-50v-65zm1250%2010%2065-150%2065%20150h-35v80h-60v-80z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"), linear-gradient(180deg, #ddc68a0d, transparent 50%, #376f4526);
+    --fl-art-size: 100vw 100vh, 100vw 100vh;
+}
+
 html[data-fl-tv][data-fl-toolbar] #header,
 html[data-fl-tv][data-fl-toolbar] #header.main,
 html[data-fl-tv][data-fl-toolbar] .head-main-nav,
@@ -313,6 +359,16 @@ html[data-fl-tv] .module .items article .data h3 {
 html[data-fl-tv] .module .content .items article .poster,
 html[data-fl-tv] .result-item .thumbnail {
     border-radius: 8px;
+}
+
+/* Gentle depth on home icons and cards; the existing focus ring stays prominent. */
+html[data-fl-tv][data-fl-home] .poster,
+html[data-fl-tv][data-fl-home] .fl-resume-poster,
+html[data-fl-tv][data-fl-home] .fl-button:not([data-fl-focus]) {
+    box-shadow: 0 4px 9px #00000052;
+}
+html[data-fl-tv][data-fl-home] .fl-theme-trigger::before {
+    box-shadow: 0 2px 4px #00000066;
 }
 
 html[data-fl-tv][data-fl-home] .module h2 {
@@ -1202,15 +1258,19 @@ html[data-fl-tv][data-fl-playback] .fl-playback-frame {
 
 .fl-theme-options .fl-button {
     flex-direction: column;
-    gap: 10px;
-    min-height: 120px;
+    gap: 6px;
+    min-height: 104px;
     white-space: normal;
+    font-size: 18px !important;
 }
+
+.fl-theme-genre { color: var(--fl-muted); font-size: 13px; font-weight: 400; }
+html[data-fl-tv] .fl-theme-options [data-fl-focus] .fl-theme-genre { color: inherit; }
 
 .fl-theme-swatch {
     display: flex;
-    width: 76px;
-    height: 34px;
+    width: 68px;
+    height: 26px;
     overflow: hidden;
     border: 2px solid #ffffff55;
     border-radius: 8px;

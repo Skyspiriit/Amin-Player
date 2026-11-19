@@ -77,7 +77,12 @@ function installFarsiLandTv(css, versionName, themeName) {
         {id: 'forest', name: 'جنگل جادویی', colors: ['#0c1f17', '#1d432c', '#c8ff7a', '#eafff2']},
         {id: 'nights', name: 'هزار و یک شب', colors: ['#0d2233', '#1d4462', '#e9b949', '#fff4dc']},
         {id: 'ice', name: 'سرزمین یخی', colors: ['#0e1c2e', '#20395b', '#8fe3ff', '#ffffff']},
-        {id: 'dragon', name: 'آتش اژدها', colors: ['#1d0f0b', '#42231a', '#ff8a3d', '#ffb25e']}
+        {id: 'dragon', name: 'آتش اژدها', colors: ['#1d0f0b', '#42231a', '#ff8a3d', '#ffb25e']},
+        {id: 'castle', name: 'قصر مهتاب', genre: 'افسانه‌ای', colors: ['#110e25', '#362854', '#e5c28e', '#f5e2b8']},
+        {id: 'orbit', name: 'مدار آینده', genre: 'علمی‌تخیلی', colors: ['#071827', '#17364b', '#66e6e0', '#c5a0ff']},
+        {id: 'theatre', name: 'پردهٔ مخملی', genre: 'درام', colors: ['#170e16', '#422330', '#e6b785', '#f6d5b3']},
+        {id: 'rose', name: 'غروب عاشقانه', genre: 'عاشقانه', colors: ['#24111d', '#523044', '#ffb9cb', '#ffe0b3']},
+        {id: 'highlands', name: 'سپیده‌دم کوهستان', genre: 'طبیعت', colors: ['#0e201c', '#254b3c', '#afdf9e', '#ffe3a0']}
     ];
     var themeDialog;
 
@@ -256,7 +261,7 @@ function installFarsiLandTv(css, versionName, themeName) {
     }
 
     function buildThemePicker() {
-        themeDialog = buildOverlay('رنگ برنامه');
+        themeDialog = buildOverlay('رنگ و فضای برنامه');
         themeDialog.classList.add('fl-theme-overlay');
         var box = q('.fl-dialog', themeDialog);
         var options = make('div', '', 'fl-theme-options');
@@ -279,6 +284,8 @@ function installFarsiLandTv(css, versionName, themeName) {
             });
             choice.appendChild(swatch);
             choice.appendChild(make('span', theme.name));
+            if (theme.genre) choice.appendChild(make('span', theme.genre, 'fl-theme-genre'));
+            choice.dataset.flTheme = theme.id;
             choice.setAttribute('aria-pressed', String(theme.id === currentTheme));
             options.appendChild(choice);
             return choice;
@@ -1429,7 +1436,7 @@ function installFarsiLandTv(css, versionName, themeName) {
                 preferredQuality: config.preferredQuality,
                 qualities: config.qualities || [],
                 quality: config.quality,
-                fullscreen: config.resume && config.resume.fullscreen,
+                fullscreen: !config.resume || config.resume.fullscreen !== false,
                 started: false,
                 finished: false,
                 lastReport: 0
@@ -1636,6 +1643,8 @@ function installFarsiLandTv(css, versionName, themeName) {
     }
 
     function exitFullscreen() {
+        // Respect an explicit exit even if the first playing event is still pending.
+        if (playback) playback.fullscreen = false;
         if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
         else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
         else if (playUi) {
@@ -1652,6 +1661,8 @@ function installFarsiLandTv(css, versionName, themeName) {
     }
 
     function enterInPageFullscreen() {
+        if (!playUi || !playUi.root.isConnected) return false;
+        if (isFullscreen()) return true;
         var placeholder = document.createComment('Amin player fullscreen');
         playUi.root.before(placeholder);
         playUi.fullscreenPlaceholder = placeholder;
@@ -1659,6 +1670,7 @@ function installFarsiLandTv(css, versionName, themeName) {
         playUi.root.setAttribute('data-fl-full', '');
         document.documentElement.setAttribute('data-fl-lock', '');
         updatePlayUi();
+        return true;
     }
 
     function toggleFullscreen() {
@@ -1746,8 +1758,7 @@ function installFarsiLandTv(css, versionName, themeName) {
             skip.classList.add('fl-skip');
             skip.hidden = true;
         });
-        [nextEpisode, play, previousEpisode, button('۱۰ ثانیه عقب', function () { media('rewind'); }),
-            button('۱۰ ثانیه جلو', function () { media('forward'); }), full, quality].forEach(function (element) {
+        [nextEpisode, play, previousEpisode, full, quality].forEach(function (element) {
             controls.appendChild(element);
         });
         var scrubRow = make('div', '', 'fl-scrub');
@@ -2004,6 +2015,7 @@ function installFarsiLandTv(css, versionName, themeName) {
                 if (type === 'loadedmetadata' || type === 'playing') applyResumePosition();
                 if (type === 'loadedmetadata' || type === 'durationchange') continuePlayback();
                 if (type === 'playing') {
+                    if (!playback.started && playback.fullscreen) enterInPageFullscreen();
                     if (playback.finished) {
                         dismissNextEpisode();
                         postPlayback({event: 'replay'});
