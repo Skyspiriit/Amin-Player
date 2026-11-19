@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Amin Player · دریافت خصوصی VPN</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0d1619;color:#edf7f6;font:17px/1.8 system-ui,sans-serif;padding:28px 18px}main{max-width:520px;margin:4vh auto;background:#17282d;border:1px solid #36575e;border-radius:22px;padding:28px}h1{font-size:25px;margin:0 0 16px}p{color:#c1d5d8}label{display:block;margin:20px 0 8px}input,button{width:100%;font:inherit;border-radius:10px;padding:13px;border:1px solid #69898f}input{background:#0d1619;color:#fff}#code{direction:ltr;text-align:center;letter-spacing:.25em}button{margin-top:24px;background:#97e6d4;color:#10201f;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:wait}input:focus-visible,button:focus-visible{outline:3px solid #fff;outline-offset:3px}small{display:block;color:#b7ccce;margin-top:20px;font-size:14px}#result{min-height:2em;color:#e6fff7}footer{font-size:13px;color:#9bb5b9;margin-top:24px}input[type=file]{font-size:14px;direction:ltr}
+</style>
+<main>
+<h1 dir="ltr">Amin Player</h1>
+<p>دریافت خصوصی فایل VPN از تلفن یا رایانه</p>
+<p>فایل را از پوشهٔ خصوصی <b dir="ltr">VPN</b> در Google Drive دانلود کنید، یا آن را از برنامهٔ Files انتخاب کنید. این انتقال فقط به تلویزیون در همین شبکه انجام می‌شود.</p>
+<form id="upload" autocomplete="off">
+<label for="code">کد ۸ رقمی روی تلویزیون</label>
+<input id="code" type="password" inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" autocomplete="off" required aria-label="TV pairing code">
+<label for="file">فایل اشتراک یا تنظیمات VPN</label>
+<input id="file" type="file" accept=".txt,.json,.conf,.vless,text/plain,application/json" required>
+<small>متن UTF-8، حداکثر ۱ مگابایت · پیوند HTTPS اشتراک، VLESS یا Xray سازگار</small>
+<button id="send" type="submit">ارسال به تلویزیون · Send to TV</button>
+</form>
+<p id="result" role="status" aria-live="polite"></p>
+<footer>پس از ارسال، «ذخیره» را با کنترل تلویزیون تأیید کنید. VPN خودکار وصل نمی‌شود. اتصال پس از یک دریافت یا ۱۰ دقیقه بسته می‌شود.<br><span lang="en" dir="ltr">Same Wi-Fi. Encrypted transfer. Confirm Save on the TV.</span></footer>
+</main>
+<script>
+'use strict';
+const form=document.getElementById('upload'),code=document.getElementById('code'),file=document.getElementById('file'),send=document.getElementById('send'),result=document.getElementById('result');
+form.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const selected=file.files[0];
+  if(!selected||!selected.size||selected.size>1048576){result.textContent='فایل متنی خالی نباشد و حداکثر ۱ مگابایت باشد. / Choose a file up to 1 MB.';return;}
+  if(!/^[0-9]{8}$/.test(code.value)){result.textContent='کد ۸ رقمی روی تلویزیون را وارد کنید. / Enter the 8-digit TV code.';return;}
+  send.disabled=true;
+  let bytes;
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+  try{
+    result.textContent='در حال ارسال خصوصی… / Sending privately…';
+    bytes=new Uint8Array(await selected.arrayBuffer());
+    const response=await fetch('/import',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Amin-Pairing-Code':code.value},body:bytes,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:controller.signal});
+    if(response.status===202){form.reset();form.hidden=true;result.textContent='فایل ارسال شد. اکنون پیام تلویزیون را بررسی و «ذخیره» را تأیید کنید. / Sent. Check the TV and confirm Save.';}
+    else if(response.status===401)result.textContent='کد درست نیست. پس از ۵ اشتباه اتصال بسته می‌شود. / Incorrect code. Five failed attempts close the session.';
+    else if(response.status===409)result.textContent='ابتدا فایل قبلی را روی تلویزیون تأیید یا لغو کنید. / Confirm or cancel the previous file on the TV.';
+    else result.textContent='ارسال پذیرفته نشد. صفحهٔ تلویزیون را بررسی کنید. / Transfer rejected. Check the TV.';
+  }catch{result.textContent='اتصال بسته شد یا در دسترس نیست. دریافت از تلفن را روی تلویزیون دوباره باز کنید. / Session closed or unreachable. Reopen import on the TV.';}
+  finally{clearTimeout(timeout);if(bytes)bytes.fill(0);send.disabled=false;}
+});
+</script>
+</html>

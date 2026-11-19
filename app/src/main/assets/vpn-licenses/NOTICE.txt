@@ -1,0 +1,18 @@
+This experimental build uses unmodified libXray v26.11.9 and Xray-core v26.11.9.
+
+libXray is Copyright (c) 2023-2025 XTLS, licensed under the MIT License.
+The complete license is in libXray-MIT.txt.
+Source and build instructions
+https://github.com/XTLS/libXray/tree/v26.11.9
+https://github.com/XTLS/libXray/archive/refs/tags/v26.11.9.zip
+
+Xray-core is licensed under Mozilla Public License 2.0.
+The complete license is in Xray-core-MPL-2.0.txt.
+Corresponding source, including go.mod and go.sum
+https://github.com/XTLS/Xray-core/tree/v26.11.9
+https://github.com/XTLS/Xray-core/archive/refs/tags/v26.11.9.zip
+
+The library's pinned Go dependencies and their source versions are listed in
+the upstream go.mod and go.sum. Each dependency retains its own license.
+The upstream source and this app's VPN code have separate copyright ownership.
+No third-party source code is modified by this project.

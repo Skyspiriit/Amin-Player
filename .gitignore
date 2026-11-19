@@ -1,0 +1,13 @@
+/.gradle/
+/.idea/
+/.kotlin/
+/build/
+/app/build/
+/local.properties
+*.iml
+*.jks
+*.keystore
+/private-vpn/
+freesocks-subscription*.txt
+freesocks-account-number*.txt
+vpn-subscription.enc
