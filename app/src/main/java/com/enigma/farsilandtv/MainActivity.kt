@@ -92,19 +92,16 @@ class MainActivity : Activity() {
         "($script)(${JSONObject.quote(css)}, ${JSONObject.quote(versionName)}"
     }
 
-    private val connectionPolicy by lazy {
-        assets.open("connection-policy.js").bufferedReader().use { it.readText() }
-    }
-
     // The colour theme is stored here, not in the page, so it also applies on the player site.
     private fun navigationScript(): String {
         val theme = playbackSettings.getString("theme", null)?.takeIf { it in THEMES } ?: THEMES.first()
-        return "$navigationParts, ${JSONObject.quote(theme)}, ($connectionPolicy)) && window.FarsiLandTv.watchInfo()"
+        return "$navigationParts, ${JSONObject.quote(theme)}) && window.FarsiLandTv.watchInfo()"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        preferredQuality = videoQuality(playbackSettings.getInt("preferred_quality", 0))
+        // Quality is chosen per viewing (see connectPlayback); drop the old saved preference.
+        playbackSettings.edit().remove("preferred_quality").apply()
         root = FrameLayout(this).apply { setBackgroundColor(Color.rgb(11, 18, 32)) }
         createWebView()
         createStatus()
@@ -256,6 +253,9 @@ class MainActivity : Activity() {
 
     private fun connectPlayback(view: WebView, page: String, details: JSONObject) {
         val config = JSONObject()
+        // The viewer's quality pick lasts while she stays in the player, including the next or
+        // previous episode. A page she opens herself (no pending launch) starts fresh at the lowest.
+        if (!isPlayerSite(page) && playbackLaunch == null) preferredQuality = null
         if (isHome(page)) {
             config.put("history", watchHistory.forHome()).put("legacyEpisodes", watchHistory.legacyEpisodes())
             config.put("vpn", vpnState())
@@ -401,29 +401,14 @@ class MainActivity : Activity() {
             quality = videoQuality(message.optInt("quality")) ?: quality
             return
         }
-        if (event == "quality-preference") {
-            if (!resumed || !hasWindowFocus() || finishedEpisode) return
-            val automatic = message.optBoolean("automatic")
-            val target = message.optInt("quality").takeIf { it in availableQualities }
-            if (!automatic && target == null) return
-            preferredQuality = if (automatic) null else target
-            playbackSettings.edit().putInt("preferred_quality", preferredQuality ?: 0).apply()
-            return
-        }
         val item = watchItem ?: return
         when (event) {
             "change-quality" -> {
+                // Only the viewer changes quality; the app never switches it by itself.
                 if (!resumed || !hasWindowFocus() || finishedEpisode) return
-                val automatic = message.optBoolean("automatic")
-                val target = message.optInt("quality").takeIf { it in availableQualities }
-                if (!automatic && target == null) return
-                if (message.optBoolean("buffering")) {
-                    if (preferredQuality != null || target == null || target >= (quality ?: 0)) return
-                } else {
-                    preferredQuality = if (automatic) null else target
-                    playbackSettings.edit().putInt("preferred_quality", preferredQuality ?: 0).apply()
-                }
-                if (target == null || target == quality) return
+                val target = message.optInt("quality").takeIf { it in availableQualities } ?: return
+                preferredQuality = target
+                if (target == quality) return
                 val duration = message.optInt("duration")
                 val position = message.optInt("position", -1)
                 if (duration !in 1..PlaybackHistory.MAX_DURATION || position !in 0 until duration) return

@@ -1,4 +1,4 @@
-function installFarsiLandTv(css, versionName, themeName, ConnectionPolicy) {
+function installFarsiLandTv(css, versionName, themeName) {
     'use strict';
 
     var host = location.hostname.replace(/^www\./, '');
@@ -10,7 +10,6 @@ function installFarsiLandTv(css, versionName, themeName, ConnectionPolicy) {
 
     var playerSite = host === 'farsiland.buzz' || host === 'farsiplex.com';
     var catalogue = 'https://farsiland.com';
-    var connectionPolicy = ConnectionPolicy();
     var isHome = !playerSite && /^\/(?:home\/?)?$/.test(location.pathname) && !location.search;
     var isSeries = !playerSite && /^\/tvshows\/[^/]+/.test(location.pathname);
     var isEpisode = !playerSite && /^\/episodes\/[^/]+/.test(location.pathname);
@@ -1131,112 +1130,10 @@ function installFarsiLandTv(css, versionName, themeName, ConnectionPolicy) {
         return options.slice().reverse().find(function (option) { return option <= target; }) || options[0];
     }
 
-    function automaticQuality(options) {
-        return connectionPolicy.initialQuality(options);
-    }
-
-    function adaptivePlayer(video) {
-        var hls = window.hls;
-        if (hls && hls.media === video && Array.isArray(hls.levels) && hls.levels.length > 1) {
-            var heights = connectionPolicy.qualities(hls.levels.map(function (level) { return level.height; }));
-            if (heights.length > 1) return { id: hls, heights: heights, apply: function (cap, manual) {
-                var index = -1;
-                hls.levels.forEach(function (level, i) { if (level.height <= cap) index = i; });
-                if (index < 0) return;
-                hls.autoLevelCapping = index;
-                // loadLevel changes future fragments; currentLevel would flush the playing buffer.
-                hls.loadLevel = manual ? index : -1;
-            }};
-        }
-        if (typeof window.videojs !== 'function' || typeof window.videojs.getPlayers !== 'function') return null;
-        var players = window.videojs.getPlayers();
-        for (var key in players) {
-            var player = players[key];
-            if (!player || !player.el || !player.el() || !player.el().contains(video)) continue;
-            var type = typeof player.currentType === 'function' ? player.currentType() : '';
-            if (type && !/mpegurl|dash\+xml/i.test(type)) continue;
-            var tech = player.tech({IWillNotUseThisInPlugins: true});
-            var vhs = tech && tech.vhs;
-            if (!vhs || typeof vhs.representations !== 'function') continue;
-            var reps = vhs.representations();
-            var levels = connectionPolicy.qualities(reps.map(function (rep) { return rep.height; }));
-            if (levels.length < 2) continue;
-            return { id: vhs, heights: levels, apply: function (cap, manual, force) {
-                // Cap the player's own rendition selection instead of toggling renditions: Video.js
-                // applies a toggle as a "fast quality change" that flushes the buffer and seeks.
-                // Its ABR consults selectPlaylist before each segment, so a raised cap takes effect
-                // at the next segment boundary without interrupting playback.
-                vhs.aminCap = cap;
-                vhs.aminManual = !!manual;
-                if (!vhs.aminSelect && typeof vhs.selectPlaylist === 'function') {
-                    var original = vhs.aminSelect = vhs.selectPlaylist;
-                    var heightOf = function (playlist) {
-                        var size = playlist && playlist.attributes && playlist.attributes.RESOLUTION;
-                        return size ? size.height : 0;
-                    };
-                    vhs.selectPlaylist = function () {
-                        var choice = original.apply(this, arguments);
-                        if (!vhs.aminManual && choice && (!heightOf(choice) || heightOf(choice) <= vhs.aminCap)) return choice;
-                        var main = vhs.playlists && vhs.playlists.main;
-                        var allowed = ((main && main.playlists) || []).filter(function (playlist) {
-                            var height = heightOf(playlist);
-                            return height && !(playlist.excludeUntil > Date.now()) &&
-                                (vhs.aminManual ? height === vhs.aminCap : height <= vhs.aminCap);
-                        }).sort(function (a, b) {
-                            return heightOf(a) - heightOf(b) ||
-                                ((a.attributes.BANDWIDTH || 0) - (b.attributes.BANDWIDTH || 0));
-                        });
-                        return allowed.length ? allowed[allowed.length - 1] : choice;
-                    };
-                }
-                // Only startup and the viewer's own choice switch immediately (one buffer reset).
-                var controller = vhs.playlistController_ || vhs.masterPlaylistController_;
-                if (force && controller && typeof controller.fastQualityChange_ === 'function') {
-                    controller.fastQualityChange_();
-                }
-            }};
-        }
-        return null;
-    }
-
-    function updateConnection(video, event) {
-        if (!playback || !video) return;
-        var now = Date.now();
-        if (['waiting', 'pause', 'seeking', 'error'].indexOf(event) >= 0) playback.stableSince = 0;
-        if (event === 'waiting' && playback.started) playback.hadStall = true;
-        if (!video.paused && !video.seeking && video.readyState >= 3 && !playback.stableSince) playback.stableSince = now;
-        if (playback.connectionChecked && now - playback.connectionChecked < 1000 &&
-            ['waiting', 'pause', 'seeking', 'error', 'preference'].indexOf(event) < 0) return;
-        playback.connectionChecked = now;
-        var engine;
-        try { engine = adaptivePlayer(video); } catch (_) { return; }
-        if (!engine) return; // Separate MP4 files never trigger an automatic upgrade/reload.
-        var identity = engine.heights.join(',');
-        if (!playback.adaptive || playback.adaptive.engine.id !== engine.id || playback.adaptive.identity !== identity) {
-            playback.adaptive = {engine: engine, identity: identity, policy: connectionPolicy.session(engine.heights)};
-            playback.qualities = engine.heights;
-            playback.quality = closestQuality(engine.heights, video.videoHeight || playback.quality || 480);
-            playback.qualityChosen = true;
-            postPlayback({event: 'quality-options', options: engine.heights, selected: playback.quality});
-        }
-        var state = playback.adaptive;
-        var manual = playback.preferredQuality || null;
-        var cap = state.policy.observe({now: now, actual: video.videoHeight || playback.quality,
-            buffer: connectionPolicy.bufferedAhead(video), playing: !document.hidden && !video.paused && video.readyState >= 3,
-            seeking: video.seeking, waiting: playback.hadStall === true, manual: manual});
-        playback.hadStall = false;
-        var mode = String(cap) + ':' + Boolean(manual);
-        if (state.applied !== mode) {
-            // Switch at once only for the viewer's own choice, or at startup when a rendition above
-            // the starting cap was already picked; automatic upgrades wait for the next segment.
-            var force = !!manual || (!state.applied && (video.videoHeight || 0) > cap);
-            state.engine.apply(cap, manual, force);
-            state.applied = mode;
-        }
-        if (engine.heights.indexOf(video.videoHeight) >= 0 && playback.quality !== video.videoHeight) {
-            playback.quality = video.videoHeight;
-            postPlayback({event: 'quality', quality: playback.quality});
-        }
+    // Quality never changes by itself. Playback starts at the lowest quality the site offers, or at
+    // the viewer's own pick while she stays in the player; only she changes it, from the menu.
+    function startingQuality(options, requested) {
+        return requested ? closestQuality(options, requested) : options[0];
     }
 
     function showPlayerLoading() {
@@ -1257,18 +1154,10 @@ function installFarsiLandTv(css, versionName, themeName, ConnectionPolicy) {
         playerLoading = null;
     }
 
-    function askForQuality(video, quality, automatic, buffering) {
+    function askForQuality(video, quality) {
         if (!playback || !video || !Number.isFinite(video.duration) || video.duration <= 0 || video.ended) return;
-        if (!buffering && (playback.adaptive || automatic)) {
-            playback.preferredQuality = automatic ? null : quality;
-            postPlayback({event: 'quality-preference', quality: quality, automatic: automatic});
-            playback.connectionChecked = 0;
-            updateConnection(video, 'preference');
-            updatePlayUi();
-            return;
-        }
         postPlayback({
-            event: 'change-quality', quality: quality, automatic: automatic, buffering: buffering,
+            event: 'change-quality', quality: quality,
             position: Math.floor(video.currentTime), duration: Math.ceil(video.duration),
             fullscreen: isFullscreen(), playing: !video.paused
         });
@@ -1281,42 +1170,19 @@ function installFarsiLandTv(css, versionName, themeName, ConnectionPolicy) {
         qualityDialog.classList.add('fl-quality-overlay');
         var box = q('.fl-dialog', qualityDialog);
         var options = make('div', '', 'fl-quality-options');
-        var auto = button('خودکار', function () {
-            closeOverlay(qualityDialog);
-            var target = playback.preferredQuality ? automaticQuality(playback.qualities) : playback.quality;
-            playback.preferredQuality = null;
-            askForQuality(sourceVideo(), target, true, false);
-        });
-        auto.setAttribute('aria-pressed', String(!playback.preferredQuality));
-        options.appendChild(auto);
         playback.qualities.forEach(function (resolution) {
             var option = button(persianNumber(resolution) + 'p', function () {
                 closeOverlay(qualityDialog);
+                if (resolution === playback.quality) return;
                 playback.preferredQuality = resolution;
-                askForQuality(sourceVideo(), resolution, false, false);
+                askForQuality(sourceVideo(), resolution);
             });
             option.dir = 'ltr';
-            option.setAttribute('aria-pressed', String(playback.preferredQuality === resolution));
+            option.setAttribute('aria-pressed', String(playback.quality === resolution));
             options.appendChild(option);
         });
         box.appendChild(options);
         openOverlay(qualityDialog, q('[aria-pressed="true"]', options), playUi.quality);
-    }
-
-    function watchBuffering(video) {
-        if (!playback || !playback.started || playback.preferredQuality || playback.bufferTimer ||
-            playback.downgradeRequested || video.paused || video.seeking || document.hidden ||
-            video.currentTime < 5 || video.duration - video.currentTime < 10) return;
-        if (playback.adaptive) { updateConnection(video, 'waiting'); return; }
-        var lower = automaticQuality(playback.qualities);
-        if (!lower || lower >= playback.quality) return;
-        playback.bufferTimer = window.setTimeout(function () {
-            playback.bufferTimer = 0;
-            if (document.hidden || video.paused || video.seeking || video.ended || video.readyState >= 3 ||
-                playback.preferredQuality) return;
-            playback.downgradeRequested = true;
-            askForQuality(video, lower, true, true);
-        }, 10000);
     }
 
     function postPlayback(message) {
@@ -1577,8 +1443,7 @@ function installFarsiLandTv(css, versionName, themeName, ConnectionPolicy) {
                 return;
             }
             var options = Array.from(new Set(qualities.map(qualityOf))).sort(function (a, b) { return a - b; });
-            var requested = playback.requestedQuality || playback.preferredQuality;
-            var selected = requested ? closestQuality(options, requested) : automaticQuality(options);
+            var selected = startingQuality(options, playback.requestedQuality || playback.preferredQuality);
             playback.qualities = options;
             playback.quality = selected;
             playback.pendingQuality = qualities.find(function (element) { return qualityOf(element) === selected; });
@@ -1948,7 +1813,6 @@ function installFarsiLandTv(css, versionName, themeName, ConnectionPolicy) {
         tidyDetails();
         translate();
         mountPlayer();
-        if (sourceVideo()) updateConnection(sourceVideo(), 'refresh');
         continuePlayback();
         all('iframe[allowfullscreen], #player iframe, #playcontainer iframe, .pframe iframe').filter(visible).forEach(frameHelp);
         updatePlayerRemote();
@@ -2119,18 +1983,12 @@ function installFarsiLandTv(css, versionName, themeName, ConnectionPolicy) {
     window.addEventListener('resize', scheduleRefresh);
     document.addEventListener('fullscreenchange', function () { updatePlayUi(); revealControls(); });
     document.addEventListener('webkitfullscreenchange', function () { updatePlayUi(); revealControls(); });
-    ['play', 'playing', 'pause', 'ended', 'timeupdate', 'loadedmetadata', 'durationchange', 'seeking', 'seeked', 'error', 'waiting'].forEach(function (type) {
+    ['play', 'playing', 'pause', 'ended', 'timeupdate', 'loadedmetadata', 'durationchange', 'seeked', 'error', 'waiting'].forEach(function (type) {
         document.addEventListener(type, function (event) {
             if (event.target !== sourceVideo()) return;
             if (type === 'error') playError();
             if (type === 'play') playUi.status.textContent = '';
             if (playback) {
-                updateConnection(event.target, type);
-                if (type === 'waiting') watchBuffering(event.target);
-                if (type === 'playing' || type === 'pause' || type === 'seeked') {
-                    window.clearTimeout(playback.bufferTimer);
-                    playback.bufferTimer = 0;
-                }
                 if (type === 'loadedmetadata' || type === 'playing' || type === 'seeked' || type === 'timeupdate') applyResumePosition();
                 if (type === 'loadedmetadata' || type === 'durationchange') continuePlayback();
                 if (type === 'playing') {
