@@ -840,14 +840,9 @@ class MainActivity : Activity() {
         private val SELECT_KEYS = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BUTTON_A,
             KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER)
 
-        private fun siteHost(url: String): String? {
-            val uri = Uri.parse(url)
-            if (uri.scheme != "https" || uri.port !in listOf(-1, 443) || uri.userInfo != null) return null
-            return uri.host?.lowercase()?.removePrefix("www.")
-        }
-
-        private fun isCatalogueSite(url: String) = siteHost(url) == "farsiland.com"
-        private fun isPlayerSite(url: String) = siteHost(url) == "farsiland.buzz"
+        private fun siteHost(url: String) = PlaybackSites.host(url)
+        private fun isCatalogueSite(url: String) = PlaybackSites.isCatalogue(url)
+        private fun isPlayerSite(url: String) = PlaybackSites.isPlayer(url)
         private fun isSite(url: String) = isCatalogueSite(url) || isPlayerSite(url)
         private fun isSeriesPage(url: String) = isCatalogueSite(url) &&
             Uri.parse(url).pathSegments.let { it.size == 2 && it[0] == "tvshows" }

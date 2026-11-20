@@ -4,10 +4,11 @@ function installFarsiLandTv(css, versionName, themeName) {
     var host = location.hostname.replace(/^www\./, '');
     if (window.top !== window || !document.body || document.readyState === 'loading' ||
         location.protocol !== 'https:' || (location.port && location.port !== '443') ||
-        ['farsiland.com', 'farsiland.buzz'].indexOf(host) < 0) return false;
+        location.username || location.password ||
+        ['farsiland.com', 'farsiland.buzz', 'farsiplex.com'].indexOf(host) < 0) return false;
     if (window.FarsiLandTv) return true;
 
-    var playerSite = host === 'farsiland.buzz';
+    var playerSite = host === 'farsiland.buzz' || host === 'farsiplex.com';
     var catalogue = 'https://farsiland.com';
     var isHome = !playerSite && /^\/(?:home\/?)?$/.test(location.pathname) && !location.search;
     var isSeries = !playerSite && /^\/tvshows\/[^/]+/.test(location.pathname);
@@ -125,7 +126,7 @@ function installFarsiLandTv(css, versionName, themeName) {
             var url = new URL(value, location.href);
             return url.protocol === 'https:' && !url.username && !url.password &&
                 (!url.port || url.port === '443') &&
-                /^(?:www\.)?farsiland\.(com|buzz)$/.test(url.hostname);
+                /^(?:www\.)?(?:farsiland\.(?:com|buzz)|farsiplex\.com)$/.test(url.hostname);
         } catch (_) {
             return false;
         }
@@ -785,7 +786,7 @@ function installFarsiLandTv(css, versionName, themeName) {
         if (!watch) return false;
         var form = q('form[action]', watch);
         var target = form ? form.action : watch.href;
-        return knownUrl(target) && /^(?:www\.)?farsiland\.buzz$/.test(new URL(target).hostname);
+        return knownUrl(target) && /^(?:www\.)?(?:farsiland\.buzz|farsiplex\.com)$/.test(new URL(target).hostname);
     }
 
     function tidyDetails() {
@@ -1490,9 +1491,16 @@ function installFarsiLandTv(css, versionName, themeName) {
         var video = sourceVideo();
         if (!playback || !playback.resumeAt || !video || !Number.isFinite(video.duration) || video.duration <= 0) return;
         var position = Math.min(playback.resumeAt, Math.max(0, video.duration - 1));
-        try {
-            video.currentTime = position;
+        if (!video.seeking && Math.abs(video.currentTime - position) < 1) {
             playback.resumeAt = 0;
+            return;
+        }
+        // FarsiPlex may initialize/reload its player after metadata arrives. Keep the
+        // resume request until the media confirms it, and use the player's seek API.
+        if (playback.resumeSeekAt && Date.now() - playback.resumeSeekAt < 1500) return;
+        playback.resumeSeekAt = Date.now();
+        try {
+            seekTo(position);
         } catch (_) { /* The next media event can retry once the player is ready. */ }
     }
 
@@ -1583,6 +1591,7 @@ function installFarsiLandTv(css, versionName, themeName) {
         var position = playUi.preview;
         window.clearTimeout(playUi.seekTimer);
         playUi.preview = null;
+        if (playback) playback.resumeAt = 0;
         try { seekTo(position); } catch (_) { playError(); }
         updatePlayUi();
     }
@@ -2012,7 +2021,7 @@ function installFarsiLandTv(css, versionName, themeName) {
                     window.clearTimeout(playback.bufferTimer);
                     playback.bufferTimer = 0;
                 }
-                if (type === 'loadedmetadata' || type === 'playing') applyResumePosition();
+                if (type === 'loadedmetadata' || type === 'playing' || type === 'seeked' || type === 'timeupdate') applyResumePosition();
                 if (type === 'loadedmetadata' || type === 'durationchange') continuePlayback();
                 if (type === 'playing') {
                     if (!playback.started && playback.fullscreen) enterInPageFullscreen();
