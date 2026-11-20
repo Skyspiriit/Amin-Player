@@ -29,6 +29,27 @@ class PlaybackSitesTest {
         )) assertFalse(url, PlaybackSites.isPlayer(url))
     }
 
+    @Test fun googleAdServicesAreRecognisedWithoutCatchingPlaybackOrLookAlikes() {
+        for (url in listOf(
+            "https://imasdk.googleapis.com/js/sdkloader/ima3.js",
+            "https://imasdk.googleapis.com/js/core/bridge3.800.0_en.html",
+            "https://pubads.g.doubleclick.net/gampad/ads?iu=/1/test",
+            "https://googleads.g.doubleclick.net/pagead/id",
+            "https://pagead2.googlesyndication.com/pagead/ads?client=ca-pub-1",
+            "https://www.googleadservices.com/pagead/conversion.js",
+            "https://gcdn.2mdn.net/videoplayback/id/1/itag/346/source/web_video_ads/",
+            "http://s0.2mdn.net/instream/html5/ima3.js",
+            "HTTPS://IMASDK.GOOGLEAPIS.COM/js/sdkloader/ima3.js"
+        )) assertTrue(url, PlaybackSites.isAd(url))
+        for (url in listOf(
+            "https://farsiplex.com/smart-play", "https://pl.farsiplex.buzz/series/taxi/02.480.mp4",
+            "https://farsiland.com/episodes/taxi-ep01/", "https://ajax.googleapis.com/ajax/libs/jquery.js",
+            "https://fonts.googleapis.com/css2", "https://www.google.com/", "https://www.youtube.com/",
+            "https://notdoubleclick.net/x", "https://2mdn.net.evil.example/x", "https://example.com/?u=doubleclick.net",
+            "not a url"
+        )) assertFalse(url, PlaybackSites.isAd(url))
+    }
+
     @Test fun catalogueRemainsSeparateFromPlayerOrigins() {
         assertTrue(PlaybackSites.isCatalogue("https://farsiland.com/episodes/taxi-ep01/"))
         assertTrue(PlaybackSites.isCatalogue("https://www.farsiland.com/home"))

@@ -14,4 +14,17 @@ internal object PlaybackSites {
 
     fun isCatalogue(value: String) = host(value) == "farsiland.com"
     fun isPlayer(value: String) = host(value) in setOf("farsiland.buzz", "farsiplex.com")
+
+    /**
+     * Google ad services used by the players' pre-roll ads. Where these hang (for example under
+     * filtering), the player shows a black screen for about 45 seconds before the episode, so the
+     * app makes them fail at once and the player starts the episode directly.
+     */
+    private val adDomains = listOf("imasdk.googleapis.com", "doubleclick.net", "googlesyndication.com",
+        "googleadservices.com", "2mdn.net")
+
+    fun isAd(value: String): Boolean {
+        val host = runCatching { URI(value).host }.getOrNull()?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return false
+        return adDomains.any { host == it || host.endsWith(".$it") }
+    }
 }

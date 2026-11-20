@@ -567,8 +567,12 @@ class MainActivity : Activity() {
         }
 
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-            if (request.method != "GET") return null
             val url = request.url.toString()
+            // Skip pre-roll ads: a failed ad request makes the player start the episode at once.
+            if (PlaybackSites.isAd(url)) {
+                return WebResourceResponse("text/plain", null, 403, "Blocked", emptyMap(), "".byteInputStream())
+            }
+            if (request.method != "GET") return null
             if (request.isForMainFrame && isFavoritesPage(url)) {
                 return screenShell("علاقه‌مندی", "")
             }
