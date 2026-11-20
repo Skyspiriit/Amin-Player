@@ -31,7 +31,7 @@ private fun posterUrl(value: String): String? {
     }
 }
 
-internal fun videoQuality(value: Int) = value.takeIf { it in setOf(480, 720, 1080, 1440, 2160) }
+internal fun videoQuality(value: Int) = value.takeIf { it in setOf(144, 240, 360, 480, 540, 720, 1080, 1440, 2160) }
 
 internal data class LibraryTitle(val url: String, val title: String, val poster: String?) {
     fun json() = JSONObject().put("url", url).put("title", title).put("poster", poster)

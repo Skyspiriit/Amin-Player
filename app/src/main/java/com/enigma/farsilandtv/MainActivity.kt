@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -71,8 +72,13 @@ class MainActivity : Activity() {
     private var rendererGone = false
     private var fullscreen: View? = null
     private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
+    private val loadWindow = PageLoadWindow()
+    private var prepareRetry: Runnable? = null
+    private val slowLoading = Runnable {
+        if (!ready && !failed && !isFinishing) message.setText(R.string.loading_slow)
+    }
     private val timeout = Runnable {
-        if (!ready && !failed && !isFinishing) {
+        if (!ready && !failed && !isFinishing && loadWindow.expired(SystemClock.elapsedRealtime())) {
             showError()
             web.stopLoading()
         }
@@ -86,10 +92,14 @@ class MainActivity : Activity() {
         "($script)(${JSONObject.quote(css)}, ${JSONObject.quote(versionName)}"
     }
 
+    private val connectionPolicy by lazy {
+        assets.open("connection-policy.js").bufferedReader().use { it.readText() }
+    }
+
     // The colour theme is stored here, not in the page, so it also applies on the player site.
     private fun navigationScript(): String {
         val theme = playbackSettings.getString("theme", null)?.takeIf { it in THEMES } ?: THEMES.first()
-        return "$navigationParts, ${JSONObject.quote(theme)}) && window.FarsiLandTv.watchInfo()"
+        return "$navigationParts, ${JSONObject.quote(theme)}, ($connectionPolicy)) && window.FarsiLandTv.watchInfo()"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -107,7 +117,7 @@ class MainActivity : Activity() {
         val restoredUrl = history?.currentItem?.url
         if (restoredUrl != null && isSite(restoredUrl)) {
             activeUrl = restoredUrl
-            showLoading()
+            showLoading(true)
         } else {
             openHome()
         }
@@ -161,9 +171,18 @@ class MainActivity : Activity() {
             if (rendererGone) {
                 createWebView()
                 rendererGone = false
-                load(url)
+            }
+            if (isPlayerSite(url) && playbackReturn != null) {
+                // A bare player URL does not carry the provider's original POST selection.
+                val launch = playbackLaunch
+                val progress = launch?.progress ?: watchItem?.let { item ->
+                    watchHistory.find(item.url) ?: WatchProgress(item, 0, 0, quality)
+                }
+                if (progress != null) startPlayback(progress, fullscreen = launch?.fullscreen ?: true,
+                    playing = launch?.playing ?: true, requestedQuality = launch?.requestedQuality)
+                else load(playbackReturn ?: HOME)
             } else if (web.url == url) {
-                showLoading()
+                showLoading(true)
                 web.reload()
             } else {
                 load(url)
@@ -205,7 +224,7 @@ class MainActivity : Activity() {
 
     private fun load(url: String) {
         activeUrl = url.takeIf(::isSite) ?: HOME
-        showLoading()
+        showLoading(true)
         web.loadUrl(activeUrl)
     }
 
@@ -382,6 +401,15 @@ class MainActivity : Activity() {
             quality = videoQuality(message.optInt("quality")) ?: quality
             return
         }
+        if (event == "quality-preference") {
+            if (!resumed || !hasWindowFocus() || finishedEpisode) return
+            val automatic = message.optBoolean("automatic")
+            val target = message.optInt("quality").takeIf { it in availableQualities }
+            if (!automatic && target == null) return
+            preferredQuality = if (automatic) null else target
+            playbackSettings.edit().putInt("preferred_quality", preferredQuality ?: 0).apply()
+            return
+        }
         val item = watchItem ?: return
         when (event) {
             "change-quality" -> {
@@ -452,23 +480,32 @@ class MainActivity : Activity() {
         load(HOME)
     }
 
-    private fun showLoading() {
+    private fun showLoading(fresh: Boolean = false) {
+        val remaining = loadWindow.begin(SystemClock.elapsedRealtime(), fresh || ready || failed)
         generation++
         ready = false
         failed = false
         handler.removeCallbacks(timeout)
+        handler.removeCallbacks(slowLoading)
+        prepareRetry?.let(handler::removeCallbacks)
+        prepareRetry = null
         message.setText(R.string.loading)
         retry.visibility = View.GONE
         home.visibility = View.GONE
         status.visibility = View.VISIBLE
         status.requestFocus()
-        handler.postDelayed(timeout, 35_000)
+        handler.postDelayed(timeout, remaining)
+        handler.postDelayed(slowLoading, minOf(30_000L, remaining))
     }
 
     private fun showError(text: Int = R.string.load_error) {
         failed = true
         ready = false
         handler.removeCallbacks(timeout)
+        handler.removeCallbacks(slowLoading)
+        prepareRetry?.let(handler::removeCallbacks)
+        prepareRetry = null
+        loadWindow.finish()
         status.visibility = View.VISIBLE
         message.setText(text)
         retry.visibility = View.VISIBLE
@@ -477,18 +514,31 @@ class MainActivity : Activity() {
     }
 
     private fun preparePage(view: WebView, url: String) {
-        if (view !== web || failed || !isSite(url)) return
+        if (view !== web || failed || ready || !isSite(url)) return
+        prepareRetry?.let(handler::removeCallbacks)
+        prepareRetry = null
         val loadingGeneration = generation
         view.evaluateJavascript(navigationScript()) { result ->
             if (generation != loadingGeneration || failed || ready ||
                 view !== web || isFinishing || !isSite(view.url.orEmpty())) return@evaluateJavascript
-            val details = runCatching { JSONObject(result) }.getOrNull() ?: return@evaluateJavascript
+            val details = runCatching { JSONObject(result) }.getOrNull()
+            if (details == null) {
+                // DOM readiness can precede the final load event by a long time on slow links.
+                prepareRetry = Runnable {
+                    if (generation == loadingGeneration && !failed && !ready) preparePage(view, view.url ?: url)
+                }.also { handler.postDelayed(it, 400) }
+                return@evaluateJavascript
+            }
             val page = view.url ?: url
             activeUrl = page
             if (isCatalogueSite(page)) rememberCataloguePage(page)
             ready = true
             connectPlayback(view, page, details)
             handler.removeCallbacks(timeout)
+            handler.removeCallbacks(slowLoading)
+            prepareRetry?.let(handler::removeCallbacks)
+            prepareRetry = null
+            loadWindow.finish()
             status.visibility = View.GONE
             web.requestFocus()
             runPage("refresh(true)")

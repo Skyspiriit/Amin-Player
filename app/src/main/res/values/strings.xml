@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">Amin player</string>
     <string name="loading">در حال بارگذاری…</string>
+    <string name="loading_slow">اینترنت کند است؛ هنوز در حال بارگذاری هستیم. لطفاً تا دو دقیقه صبر کنید.</string>
     <string name="load_error">صفحه باز نشد. اتصال اینترنت را بررسی کنید و دوباره امتحان کنید.</string>
     <string name="retry">تلاش دوباره</string>
     <string name="home">خانه</string>
