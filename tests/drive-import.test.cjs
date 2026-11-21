@@ -40,3 +40,33 @@ test('a file enlarged after selection is stopped at the byte limit and staged ch
  await assert.rejects(policy.download('fixture','picked',async()=>++calls===1?Response.json({...meta,size:'100'}):media),error=>error.code==='SIZE');
  assert(cancelled);assert(first.every(v=>v===0));assert(extra.every(v=>v===0));
 });
+test('the picker opens on the account\'s own Drive with every folder, then shared files and shared drives',async()=>{
+ // Runs the real phone page script with a fake Google loader; the first tab must not be the shared-drives view,
+ // which is empty for ordinary accounts (found in the live Google test of 1.31).
+ const views=[],features=[];
+ class DocsView{constructor(id){this.o={id}}setSelectFolderEnabled(v){this.o.selectFolder=v;return this}setIncludeFolders(v){this.o.folders=v;return this}
+  setParent(v){this.o.parent=v;return this}setOwnedByMe(v){this.o.ownedByMe=v;return this}setEnableDrives(v){this.o.drives=v;return this}}
+ const chain={};for(const name of ['setLocale','setOAuthToken','setDeveloperKey','setAppId','setOrigin','setTitle','setCallback','setSize'])chain[name]=function(){return this};
+ class PickerBuilder{addView(v){views.push(v.o);return this}enableFeature(f){features.push(f);return this}build(){return {setVisible(){},dispose(){}}}}
+ Object.assign(PickerBuilder.prototype,chain);
+ const choose={disabled:true,addEventListener(type,fn){this.click=fn}},status={textContent:''},listeners={};
+ const context={AminDrivePolicy:policy,AminGoogle:{clientId:'1-a.apps.googleusercontent.com',pickerKey:'key',projectNumber:'1'},
+  location:{origin:'https://skyspiriit.github.io'},innerWidth:400,innerHeight:700,setInterval:()=>0,clearInterval(){},setTimeout:()=>0,clearTimeout(){},
+  opener:{postMessage(){},closed:false},addEventListener(type,fn){listeners[type]=fn},
+  document:{getElementById:id=>({choose,status,cancel:{addEventListener(){}}})[id],createElement:()=>({}),head:{appendChild(s){setImmediate(()=>s.onload())}}},
+  gapi:{load(name,o){setImmediate(o.callback)}},
+  google:{picker:{DocsView,PickerBuilder,ViewId:{DOCS:'docs'},Feature:{SUPPORT_DRIVES:'drives'},Action:{PICKED:'picked',CANCEL:'cancel'}},
+   accounts:{oauth2:{hasGrantedAllScopes:()=>true,initTokenClient:o=>({requestAccessToken:()=>o.callback({access_token:'fixture',expires_in:3600})})}}}};
+ context.window=context;
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../docs/drive-import/drive-picker.js'),'utf8'),context);
+ for(let i=0;i<5;i++)await new Promise(r=>setImmediate(r));
+ listeners.message({source:context.opener,origin:'https://192.168.1.152:43471',data:{type:'amin-drive-init',session:'a'.repeat(32),expiresIn:300}});
+ assert.equal(choose.disabled,false);
+ choose.click();
+ assert.equal(views.length,3);
+ assert.deepEqual(views[0],{id:'docs',selectFolder:false,folders:true,parent:'root'});
+ assert.equal(views[0].drives,undefined);
+ assert.deepEqual(views[1],{id:'docs',selectFolder:false,ownedByMe:false});
+ assert.equal(views[2].drives,true);
+ assert.deepEqual(features,['drives']);
+});

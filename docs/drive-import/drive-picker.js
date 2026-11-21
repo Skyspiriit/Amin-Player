@@ -66,10 +66,13 @@
   }
   function showPicker() {
     if (!session || Date.now() >= session.deadline) return expired();
-    const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
-      .setIncludeFolders(true).setSelectFolderEnabled(false).setEnableDrives(true);
+    const P = google.picker, files = () => new P.DocsView(P.ViewId.DOCS).setSelectFolderEnabled(false);
+    // First tab: the account's own Drive, opened at its top folder so every folder can be browsed.
+    // A view with setEnableDrives(true) lists only shared drives, which is empty for most accounts.
     picker?.dispose();
-    picker = new google.picker.PickerBuilder().addView(view).setLocale('fa')
+    picker = new P.PickerBuilder().addView(files().setIncludeFolders(true).setParent('root'))
+      .addView(files().setOwnedByMe(false)).addView(files().setIncludeFolders(true).setEnableDrives(true))
+      .enableFeature(P.Feature.SUPPORT_DRIVES).setLocale('fa')
       .setOAuthToken(accessToken).setDeveloperKey(config.pickerKey).setAppId(config.projectNumber)
       .setOrigin(location.origin).setTitle('فایل تنظیمات را از هر پوشه‌ای انتخاب کنید')
       .setCallback(pickerResult).setSize(Math.max(280, Math.min(innerWidth - 12, 900)), Math.max(300, Math.min(innerHeight - 12, 700)))
