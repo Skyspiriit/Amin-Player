@@ -58,6 +58,9 @@ function installFarsiLandTv(css, versionName, themeName) {
     var remoteTarget;
     var playback;
     var continueRow;
+    var recs = null;
+    var REC_INTERVAL = 12000;
+    var artCache = null;
     var nextDialog;
     var nextTimer;
     var seasonLookupPending = false;
@@ -68,29 +71,23 @@ function installFarsiLandTv(css, versionName, themeName) {
     var keyToRestore;
     var pageKey = location.pathname + location.search;
 
+    // 1.32: three themes. Saved picks from the older fifteen themes open as the closest new one.
     var themes = [
-        {id: 'midnight', name: 'آبی شب', colors: ['#0b1220', '#24334b', '#83f0de', '#ffe180']},
-        {id: 'saffron', name: 'زعفرانی', colors: ['#18120d', '#3a2b20', '#f0b23e', '#f5c55e']},
-        {id: 'turquoise', name: 'فیروزه‌ای', colors: ['#0b1830', '#1c3765', '#3fd0c6', '#ffd166']},
-        {id: 'pomegranate', name: 'اناری', colors: ['#140f12', '#35242b', '#ee6f8a', '#ffffff']},
-        {id: 'garden', name: 'سبز باغ', colors: ['#0c1712', '#1e3629', '#6fdba5', '#ffe180']},
-        {id: 'galaxy', name: 'شب پرستاره', colors: ['#140f2e', '#2f2563', '#ffd78a', '#ffffff']},
-        {id: 'forest', name: 'جنگل جادویی', colors: ['#0c1f17', '#1d432c', '#c8ff7a', '#eafff2']},
-        {id: 'nights', name: 'هزار و یک شب', colors: ['#0d2233', '#1d4462', '#e9b949', '#fff4dc']},
-        {id: 'ice', name: 'سرزمین یخی', colors: ['#0e1c2e', '#20395b', '#8fe3ff', '#ffffff']},
-        {id: 'dragon', name: 'آتش اژدها', colors: ['#1d0f0b', '#42231a', '#ff8a3d', '#ffb25e']},
-        {id: 'castle', name: 'قصر مهتاب', genre: 'افسانه‌ای', colors: ['#110e25', '#362854', '#e5c28e', '#f5e2b8']},
-        {id: 'orbit', name: 'مدار آینده', genre: 'علمی‌تخیلی', colors: ['#071827', '#17364b', '#66e6e0', '#c5a0ff']},
-        {id: 'theatre', name: 'پردهٔ مخملی', genre: 'درام', colors: ['#170e16', '#422330', '#e6b785', '#f6d5b3']},
-        {id: 'rose', name: 'غروب عاشقانه', genre: 'عاشقانه', colors: ['#24111d', '#523044', '#ffb9cb', '#ffe0b3']},
-        {id: 'highlands', name: 'سپیده‌دم کوهستان', genre: 'طبیعت', colors: ['#0e201c', '#254b3c', '#afdf9e', '#ffe3a0']}
+        {id: 'cinema', name: 'سینمای طلایی', note: 'زغالی، کهربایی و طلایی', colors: ['#141114', '#2c251d', '#f2b544', '#ffd877']},
+        {id: 'turquoise', name: 'شب فیروزه‌ای', note: 'سرمه‌ای و فیروزه‌ای', colors: ['#08142a', '#163055', '#2fe0d0', '#9af8ef']},
+        {id: 'pomegranate', name: 'انار مخملی', note: 'شرابی، کرم و مسی', colors: ['#1b0a11', '#3d1824', '#d98b52', '#fbefdf']}
     ];
+    var legacyThemes = {
+        midnight: 'turquoise', saffron: 'cinema', garden: 'turquoise', galaxy: 'pomegranate', forest: 'turquoise',
+        nights: 'cinema', ice: 'turquoise', dragon: 'cinema', castle: 'pomegranate', orbit: 'turquoise',
+        theatre: 'pomegranate', rose: 'pomegranate', highlands: 'cinema'
+    };
     var themeDialog;
 
     function applyTheme(id) {
-        var theme = themes.find(function (item) { return item.id === id; }) || themes[0];
-        if (theme.id === 'midnight') document.documentElement.removeAttribute('data-fl-theme');
-        else document.documentElement.setAttribute('data-fl-theme', theme.id);
+        var wanted = legacyThemes[id] || id;
+        var theme = themes.find(function (item) { return item.id === wanted; }) || themes[0];
+        document.documentElement.setAttribute('data-fl-theme', theme.id);
         return theme.id;
     }
     var currentTheme = applyTheme(themeName);
@@ -106,6 +103,36 @@ function installFarsiLandTv(css, versionName, themeName) {
         if (text) element.textContent = text;
         if (className) element.className = className;
         return element;
+    }
+
+    // One stroke icon set (24 px grid, 2 px strokes, round joins); ".f" parts are filled.
+    var ICONS = {
+        home: '<path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.8V20h4.5v-5.5h3V20H18V9.8"/>',
+        heart: '<path class="fl-heart" d="M12 20s-7.2-4.5-9.1-8.7C1.4 8 3.3 4.6 6.7 4.6c2.2 0 3.6 1.3 5.3 3.2 1.7-1.9 3.1-3.2 5.3-3.2 3.4 0 5.3 3.4 3.8 6.7C19.2 15.5 12 20 12 20z"/>',
+        search: '<circle cx="10.6" cy="10.6" r="6.3"/><path d="m15.4 15.4 5 5"/>',
+        palette: '<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.3 0 1.9-.9 1.9-1.8 0-1.3-1.1-1.6-1.1-2.7 0-.9.8-1.6 1.7-1.6h2.3a3.8 3.8 0 0 0 3.8-3.8C20.6 6.6 16.8 3.5 12 3.5z"/><circle class="f" cx="7.6" cy="11.2" r="1.3"/><circle class="f" cx="10.2" cy="7.4" r="1.3"/><circle class="f" cx="14.6" cy="7.4" r="1.3"/>',
+        shield: '<path d="M12 3.2 4.8 6v5.6c0 4.4 3 8 7.2 9.2 4.2-1.2 7.2-4.8 7.2-9.2V6z"/><path class="fl-shield-tick" d="m9 12.2 2.1 2.1 4-4.1"/>',
+        play: '<path class="f" d="M8 5.2v13.6c0 .8.9 1.3 1.6.8l10-6.8c.6-.4.6-1.2 0-1.6l-10-6.8C8.9 3.9 8 4.4 8 5.2z"/>',
+        episodes: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M8 9.5h8M8 14.5h5"/>',
+        previous: '<path d="M6 5.5v13"/><path class="f" d="M18.8 11.2 10.6 5.8c-.6-.4-1.4 0-1.4.8v10.8c0 .8.8 1.2 1.4.8l8.2-5.4c.6-.4.6-1.2 0-1.6z"/>',
+        film: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9h17M3.5 15h17M8 5v4M16 5v4M8 15v4M16 15v4"/>'
+    };
+
+    function withIcon(element, name, label) {
+        element.textContent = '';
+        if (name && ICONS[name]) {
+            element.insertAdjacentHTML('afterbegin', '<svg class="fl-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+                ICONS[name] + '</svg>');
+        }
+        element.appendChild(make('span', label, 'fl-label'));
+        element.classList.add('fl-has-icon');
+        return element;
+    }
+
+    function setLabel(element, text) {
+        var label = q('.fl-label', element);
+        if (label) label.textContent = text;
+        else element.textContent = text;
     }
 
     function button(label, action) {
@@ -256,6 +283,7 @@ function installFarsiLandTv(css, versionName, themeName) {
         setLanguage('fa');
 
         var trigger = button('جستجو', function () { openOverlay(searchDialog, firstLetter, trigger); });
+        withIcon(trigger, 'search', 'جستجو');
         trigger.classList.add('fl-search-trigger');
         trigger.setAttribute('aria-haspopup', 'dialog');
         return trigger;
@@ -277,15 +305,19 @@ function installFarsiLandTv(css, versionName, themeName) {
                 postPlayback({event: 'theme', theme: currentTheme});
                 closeOverlay(themeDialog);
             });
-            var swatch = make('span', '', 'fl-theme-swatch');
-            theme.colors.forEach(function (color) {
-                var part = make('span');
-                part.style.background = color;
-                swatch.appendChild(part);
-            });
-            choice.appendChild(swatch);
-            choice.appendChild(make('span', theme.name));
-            if (theme.genre) choice.appendChild(make('span', theme.genre, 'fl-theme-genre'));
+            // A small preview: the theme's own surface, a card and its focus colour.
+            var preview = make('span', '', 'fl-theme-preview');
+            preview.style.background = 'radial-gradient(circle at 80% 0%, ' + theme.colors[2] + '55, transparent 60%), ' + theme.colors[0];
+            var sample = make('span', '', 'fl-theme-preview-card');
+            sample.style.background = theme.colors[1];
+            sample.style.borderColor = theme.colors[3];
+            preview.appendChild(sample);
+            var bar = make('span', '', 'fl-theme-preview-bar');
+            bar.style.background = theme.colors[2];
+            preview.appendChild(bar);
+            choice.appendChild(preview);
+            choice.appendChild(make('span', theme.name, 'fl-theme-name'));
+            choice.appendChild(make('span', theme.note, 'fl-theme-genre'));
             choice.dataset.flTheme = theme.id;
             choice.setAttribute('aria-pressed', String(theme.id === currentTheme));
             options.appendChild(choice);
@@ -295,6 +327,7 @@ function installFarsiLandTv(css, versionName, themeName) {
         var trigger = button('رنگ‌ها', function () {
             openOverlay(themeDialog, q('[aria-pressed="true"]', options), trigger);
         });
+        withIcon(trigger, 'palette', 'رنگ‌ها');
         trigger.classList.add('fl-theme-trigger');
         trigger.setAttribute('aria-haspopup', 'dialog');
         return trigger;
@@ -304,35 +337,40 @@ function installFarsiLandTv(css, versionName, themeName) {
         toolbar = make('nav', '', 'fl-toolbar');
         toolbar.dir = 'rtl';
         toolbar.setAttribute('aria-label', 'منوی Amin player');
-        if (isHome && versionName) toolbar.appendChild(make('span', 'v' + versionName, 'fl-app-version'));
-        toolbar.appendChild(link('خانه', catalogue + '/home'));
-        var favorites = link('علاقه‌مندی', catalogue + '/amin-player/favorites/');
+        var home = withIcon(link('', catalogue + '/home'), 'home', 'خانه');
+        if (isHome) home.setAttribute('aria-current', 'page');
+        toolbar.appendChild(home);
+        var favorites = withIcon(link('', catalogue + '/amin-player/favorites/'), 'heart', 'علاقه‌مندی');
         if (isFavorites) favorites.setAttribute('aria-current', 'page');
         toolbar.appendChild(favorites);
-        if (isHome) toolbar.appendChild(buildThemePicker());
         var siteForm = q('#header form[role="search"]');
         var action = !playerSite && siteForm && knownUrl(siteForm.action) ? siteForm.action : catalogue + '/';
         toolbar.appendChild(buildSearch(action));
-        document.body.insertBefore(toolbar, document.body.firstChild);
+        if (isHome) toolbar.appendChild(buildThemePicker());
         if (isHome) {
-            vpnHome = make('section', '', 'fl-vpn-home');
-            var vpnAction = button('اتصال VPN · Connect VPN', function () { postPlayback({event: 'vpn'}); });
-            vpnAction.id = 'fl-vpn-action';
-            var vpnStatus = make('p', 'VPN خاموش است', 'fl-vpn-status');
-            vpnStatus.setAttribute('aria-live', 'polite');
-            vpnHome.appendChild(vpnAction);
-            vpnHome.appendChild(vpnStatus);
-            toolbar.insertAdjacentElement('afterend', vpnHome);
+            // VPN lives in the menu (1.32); its state shows as a word and a coloured dot.
+            vpnHome = withIcon(button('', function () { postPlayback({event: 'vpn'}); }), 'shield', 'VPN');
+            vpnHome.id = 'fl-vpn-action';
+            vpnHome.classList.add('fl-vpn-button');
+            vpnHome.dataset.flVpn = 'off';
+            var state = make('span', 'خاموش', 'fl-vpn-state');
+            state.setAttribute('aria-live', 'polite');
+            vpnHome.appendChild(state);
+            toolbar.appendChild(vpnHome);
         }
+        if (isHome && versionName) toolbar.appendChild(make('span', 'v' + versionName, 'fl-app-version'));
+        document.body.insertBefore(toolbar, document.body.firstChild);
         document.documentElement.setAttribute('data-fl-toolbar', '');
     }
 
     function updateVpn(state) {
         if (!vpnHome || !state || typeof state.label !== 'string' || typeof state.status !== 'string') return;
-        var action = vpnHome.querySelector('button');
-        action.textContent = state.label;
-        action.setAttribute('aria-disabled', state.stopping ? 'true' : 'false');
-        vpnHome.querySelector('p').textContent = state.status;
+        var phase = typeof state.phase === 'string' ? state.phase : (state.stopping ? 'STOPPING' : 'OFF');
+        var words = {ON: 'وصل', CONNECTING: 'در حال اتصال', STOPPING: 'در حال قطع', ERROR: 'خطا'};
+        q('.fl-vpn-state', vpnHome).textContent = words[phase] || 'خاموش';
+        vpnHome.dataset.flVpn = phase.toLowerCase();
+        vpnHome.setAttribute('aria-label', state.label + '، ' + state.status);
+        vpnHome.setAttribute('aria-disabled', state.stopping ? 'true' : 'false');
     }
 
     function visible(element) {
@@ -486,7 +524,7 @@ function installFarsiLandTv(css, versionName, themeName) {
                 el.classList.contains('fl-quality') || el.classList.contains('fl-resume-card') ||
                 (isSeries && !!el.closest('.fl-episode-grid, #episodes .episodios')) || el.matches('.fakeplayer a');
         }) || elements.find(function (el) {
-            return !el.closest('.fl-toolbar') && !!el.closest('article.item, .result-item');
+            return !el.closest('.fl-toolbar') && (!!el.closest('article.item, .result-item') || el.classList.contains('fl-rec-card'));
         }) || elements.find(function (el) {
             return isHome && /\/series-26\/$/.test(el.href);
         }) || elements[0];
@@ -506,7 +544,7 @@ function installFarsiLandTv(css, versionName, themeName) {
         var a = focusTarget(from).getBoundingClientRect();
         var ax = (a.left + a.right) / 2;
         var ay = (a.top + a.bottom) / 2;
-        var fromRow = from.closest('.fl-row');
+        var fromRow = from.closest('.fl-row, .fl-recs-row');
         var best = null;
         var bestScore = Infinity;
         var bestPoster = null;
@@ -524,13 +562,14 @@ function installFarsiLandTv(css, versionName, themeName) {
                 ? Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
                 : Math.min(a.right, b.right) - Math.max(a.left, b.left);
             var score = main + cross * (horizontal ? 2.8 : 0.42) + (beam > 0 ? 0 : 18);
-            if (fromRow && horizontal && target.closest('.fl-row') !== fromRow) score += 300;
+            if (fromRow && horizontal && target.closest('.fl-row, .fl-recs-row') !== fromRow) score += 300;
             if (score < bestScore) {
                 best = target;
                 bestScore = score;
             }
-            if (!horizontal && fromRow && target.closest('.fl-row') &&
-                target.closest('.fl-row') !== fromRow && score < bestPosterScore) {
+            // Up/Down prefer the nearest other row of cards (site rows and the recommendation row alike).
+            var targetRow = target.closest('.fl-row, .fl-recs-row');
+            if (!horizontal && fromRow && targetRow && targetRow !== fromRow && score < bestPosterScore) {
                 bestPoster = target;
                 bestPosterScore = score;
             }
@@ -541,13 +580,15 @@ function installFarsiLandTv(css, versionName, themeName) {
     function move(direction) {
         var elements = candidates();
         if (elements.indexOf(current) < 0) return select(firstChoice(elements));
-        var next = chooseDirection(direction, elements, current);
-        if (isHome && vpnHome && !overlay()) {
-            var vpnAction = q('#fl-vpn-action', vpnHome);
-            if (direction === 'down' && toolbar.contains(current)) next = vpnAction;
-            else if (direction === 'up' && next && toolbar.contains(next) &&
-                !toolbar.contains(current) && !vpnHome.contains(current)) next = vpnAction;
+        if (recs && recs.row.contains(current) && !overlay() && (direction === 'left' || direction === 'right') &&
+            recs.pool.length > recs.size) {
+            var recCards = all('.fl-rec-card', recs.row);
+            var at = recCards.indexOf(current);
+            // Right-to-left: the first card is on the right, so Left continues to the next group.
+            if (direction === 'left' && at === recCards.length - 1) { renderRecs(recs.start + recs.size, 0, 'next'); return true; }
+            if (direction === 'right' && at === 0) { renderRecs(recs.start - recs.size, recs.size - 1, 'prev'); return true; }
         }
+        var next = chooseDirection(direction, elements, current);
         if (next) return select(next);
         return false;
     }
@@ -707,6 +748,143 @@ function installFarsiLandTv(css, versionName, themeName) {
         } catch (_) { return null; }
     }
 
+    // Landscape artwork (1.32). FarsiLand names a title's wide image after its poster with "-cover";
+    // only a cover that shares the page's own poster name is used, so related titles never leak in.
+    function artStore() {
+        if (!artCache) {
+            try { artCache = JSON.parse(localStorage.getItem('fl:art') || '{}') || {}; } catch (_) { artCache = {}; }
+        }
+        return artCache;
+    }
+
+    function saveArt(url, value) {
+        var store = artStore();
+        delete store[url];
+        store[url] = value || '';
+        var keys = Object.keys(store);
+        while (keys.length > 80) delete store[keys.shift()];
+        try { localStorage.setItem('fl:art', JSON.stringify(store)); } catch (_) {}
+    }
+
+    function uploadUrl(value, base) {
+        try {
+            var url = new URL(value, base || location.href);
+            return url.hostname.replace(/^www\./, '') === 'farsiland.com' && url.protocol === 'https:' &&
+                /^\/wp-content\/uploads\//.test(url.pathname) ? url.href : null;
+        } catch (_) { return null; }
+    }
+
+    function coverIn(source, base) {
+        var og = q('meta[property="og:image"]', source);
+        var poster = og && uploadUrl(og.content, base);
+        if (!poster) return null;
+        var stem = poster.replace(/(?:-\d+x\d+)?\.[a-z]+$/i, '');
+        var found = null;
+        // Works for a live document and for a fetched page parsed into a fragment.
+        all('[src], [data-src], [data-bg], [srcset], [style]', source).some(function (element) {
+            return ['src', 'data-src', 'data-bg', 'srcset', 'style'].some(function (name) {
+                var value = element.getAttribute(name) || '';
+                return (value.match(/https:\/\/[^"'\s)<>,]+-cover[^"'\s)<>,\/]*?\.(?:jpe?g|png|webp)/gi) || []).some(function (match) {
+                    var full = uploadUrl(match.replace(/-\d+x\d+(\.[a-z]+)$/i, '$1'));
+                    if (full && full.indexOf(stem + '-cover') === 0) found = full;
+                    return !!found;
+                });
+            });
+        });
+        return found;
+    }
+
+    // A frame that shows wide artwork, or a composed poster (blurred fill plus the sharp poster) when only
+    // a poster exists, or a quiet themed placeholder when nothing loads.
+    function artwork(wide, poster, onWide, onNoWide) {
+        var frame = make('span', '', 'fl-art');
+        function empty() {
+            frame.textContent = '';
+            frame.className = 'fl-art fl-art-empty';
+            frame.insertAdjacentHTML('afterbegin', '<svg class="fl-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+                ICONS.film + '</svg>');
+        }
+        function usePoster() {
+            if (!poster) return empty();
+            frame.textContent = '';
+            frame.className = 'fl-art fl-art-poster';
+            var fill = make('img', '', 'fl-art-fill');
+            var sharp = make('img', '', 'fl-art-sharp');
+            [fill, sharp].forEach(function (image) {
+                image.alt = '';
+                image.decoding = 'async';
+                image.src = poster;
+                frame.appendChild(image);
+            });
+            sharp.addEventListener('error', empty);
+        }
+        function useWide(url) {
+            var image = make('img', '', 'fl-art-wide');
+            image.alt = '';
+            image.decoding = 'async';
+            image.addEventListener('load', function () {
+                if (image.naturalWidth < image.naturalHeight * 1.15) {
+                    if (onNoWide && url !== poster) onNoWide();
+                    usePoster();
+                } else if (onWide) onWide();
+            });
+            image.addEventListener('error', function () {
+                if (onNoWide && url !== poster) onNoWide();
+                usePoster();
+            });
+            image.src = url;
+            frame.textContent = '';
+            frame.className = 'fl-art fl-art-wide-frame';
+            frame.appendChild(image);
+        }
+        frame.flUseWide = useWide;
+        if (wide) useWide(wide);
+        else if (poster) useWide(poster);
+        else empty();
+        return frame;
+    }
+
+    // Finds landscape artwork for Continue Watching from each title's own page, a few at a time, and remembers it.
+    function discoverCovers(items) {
+        var queue = items.filter(function (item) {
+            return !(item.url in artStore());
+        }).filter(function (item) {
+            try { return new URL(item.url).hostname.replace(/^www\./, '') === location.hostname.replace(/^www\./, ''); }
+            catch (_) { return false; }
+        });
+        function next() {
+            var item = queue.shift();
+            if (!item || navigator.onLine === false) return;
+            var abort = new AbortController();
+            var timer = window.setTimeout(function () { abort.abort(); }, 4000);
+            fetch(item.url, {mode: 'same-origin', signal: abort.signal}).then(function (response) {
+                return response.ok ? response.text() : '';
+            }).then(function (html) {
+                if (!html) return;
+                var cover = coverIn(readCatalogue(html), item.url);
+                saveArt(item.url, cover);
+                var card = continueRow && all('.fl-resume-card', continueRow).find(function (element) {
+                    return element.dataset.flEpisode === item.url;
+                });
+                var frame = card && q('.fl-art', card);
+                if (cover && frame && frame.flUseWide) frame.flUseWide(cover);
+            }).catch(function () {}).finally(function () {
+                window.clearTimeout(timer);
+                next();
+            });
+        }
+        next();
+    }
+
+    var genres = {
+        'comedy': 'کمدی', 'drama': 'درام', 'romance': 'عاشقانه', 'action': 'اکشن', 'family': 'خانوادگی',
+        'crime': 'جنایی', 'thriller': 'هیجانی', 'history': 'تاریخی', 'animation': 'انیمیشن', 'documentary': 'مستند',
+        'horror': 'ترسناک', 'mystery': 'رازآلود', 'adventure': 'ماجرایی', 'music': 'موسیقی', 'war': 'جنگی',
+        'fantasy': 'فانتزی', 'science fiction': 'علمی‌تخیلی', 'sci-fi & fantasy': 'علمی‌تخیلی', 'kids': 'کودک',
+        'action & adventure': 'اکشن و ماجرایی', 'biography': 'زندگی‌نامه', 'reality': 'واقعی', 'talk': 'گفت‌وگو',
+        'war & politics': 'جنگی و سیاسی', 'western': 'وسترن', 'sport': 'ورزشی', 'musical': 'موزیکال'
+    };
+
     function detailMetadata(source, base) {
         var header = q('#single .sheader .data', source);
         var name = header && q('h1, h2', header) || q('#single .player-title', source);
@@ -722,19 +900,31 @@ function installFarsiLandTv(css, versionName, themeName) {
             return numbersIn(date.getAttribute('datetime') || date.getAttribute('content') || date.textContent)
                 .find(function (number) { return (number >= 1900 && number <= 2100) || (number >= 1250 && number <= 1500); });
         }).find(Boolean);
-        return {url: base, title: persian || names[0], original: original, poster: pagePoster(source, base), year: year};
+        var kinds = all('#single .sgeneros a', source).map(function (genre) {
+            var name = genre.textContent.trim();
+            return genres[name.toLowerCase()] || name;
+        }).filter(function (name, index, list) { return name && list.indexOf(name) === index; }).slice(0, 3);
+        var vote = q('#single .dt_rating_vgs', source);
+        var rating = vote && parseFloat(vote.textContent.replace(',', '.'));
+        return {url: base, title: persian || names[0], original: original, poster: pagePoster(source, base), year: year,
+            cover: coverIn(source, base), genres: kinds, rating: rating > 0 && rating <= 10 ? rating : null};
     }
 
     function updateDetail() {
         if (!detail) return;
-        detail.favorite.textContent = isFavorite ? '♥ حذف از علاقه‌مندی' : '♡ افزودن به علاقه‌مندی';
+        setLabel(detail.favorite, isFavorite ? 'حذف از علاقه‌مندی' : 'افزودن به علاقه‌مندی');
         detail.favorite.setAttribute('aria-pressed', String(isFavorite));
-        if (detail.play) detail.play.textContent = detailResume ? 'ادامهٔ پخش' : 'پخش';
+        if (detail.play) setLabel(detail.play, detailResume ? 'ادامهٔ پخش' : 'پخش');
     }
 
     function detailHeader(item, play) {
         var header = make('section', '', 'fl-detail-hero');
         header.dir = 'rtl';
+        // Large background artwork under a gradual overlay; a poster-only title shows its poster beside the text.
+        var backdrop = make('div', '', 'fl-backdrop');
+        backdrop.appendChild(artwork(item.cover, item.poster, function () { header.setAttribute('data-fl-wide', ''); }));
+        header.appendChild(backdrop);
+        if (item.cover) saveArt(item.url, item.cover);
         if (item.poster) {
             var poster = make('img', '', 'fl-detail-poster');
             poster.alt = '';
@@ -746,29 +936,35 @@ function installFarsiLandTv(css, versionName, themeName) {
         var heading = make('h1', item.title, 'fl-detail-title');
         heading.dir = 'auto';
         body.appendChild(heading);
-        if (item.original || item.year) {
+        var facts = [];
+        if (item.year) facts.push(make('span', persianNumber(item.year), 'fl-detail-year'));
+        (item.genres || []).forEach(function (genre) { facts.push(make('span', genre)); });
+        if (item.rating) facts.push(make('span', '★ ' + persianNumber(item.rating.toFixed(1)).replace('.', '٫'), 'fl-detail-rating'));
+        if (item.original) {
+            var original = make('span', item.original, 'fl-detail-original');
+            original.dir = 'auto';
+            facts.push(original);
+        }
+        if (facts.length) {
             var meta = make('div', '', 'fl-detail-meta');
-            if (item.original) {
-                var original = make('span', item.original);
-                original.dir = 'auto';
-                meta.appendChild(original);
-            }
-            if (item.year) meta.appendChild(make('span', persianNumber(item.year), 'fl-detail-year'));
+            facts.forEach(function (fact) { meta.appendChild(fact); });
             body.appendChild(meta);
         }
         var actions = make('div', '', 'fl-detail-actions');
-        var primary = play && button('پخش', function () {
+        var primary = play && withIcon(button('', function () {
             if (detailResume) postPlayback({event:'resume-detail'});
             else play();
-        });
+        }), 'play', 'پخش');
         if (primary) {
             primary.id = 'fl-detail-play';
+            primary.classList.add('fl-primary');
             actions.appendChild(primary);
         }
-        var favorite = button('', function () {
+        var favorite = withIcon(button('', function () {
             postPlayback({event:'toggle-favorite', title: {url:item.url, title:item.title, poster:item.poster}});
-        });
+        }), 'heart', 'افزودن به علاقه‌مندی');
         favorite.id = 'fl-detail-favorite';
+        favorite.classList.add('fl-favorite-toggle');
         actions.appendChild(favorite);
         body.appendChild(actions);
         header.appendChild(body);
@@ -954,16 +1150,15 @@ function installFarsiLandTv(css, versionName, themeName) {
         var body = q('.fl-detail-body', overview);
         var synopsis = seriesSynopsis(catalogue);
         if (synopsis) body.insertBefore(make('p', synopsis, 'fl-series-synopsis'), q('.fl-detail-actions', body));
-        var shortcuts = make('div', '', 'fl-series-shortcuts');
-        var allEpisodes = button('همه قسمت‌ها', function () { openPicker(currentIndex); });
+        var actionRow = q('.fl-detail-actions', body);
+        var allEpisodes = withIcon(button('', function () { openPicker(currentIndex); }), 'episodes', 'همه قسمت‌ها');
         allEpisodes.id = 'fl-series-all';
         allEpisodes.disabled = !ordered.length;
-        var previousEpisode = button('قسمت قبلی', function () { if (previous) location.assign(previous.item.href); });
+        var previousEpisode = withIcon(button('', function () { if (previous) location.assign(previous.item.href); }), 'previous', 'قسمت قبلی');
         previousEpisode.id = 'fl-series-prev';
         previousEpisode.disabled = !previous;
-        shortcuts.appendChild(allEpisodes);
-        shortcuts.appendChild(previousEpisode);
-        body.appendChild(shortcuts);
+        actionRow.insertBefore(allEpisodes, detail.favorite);
+        if (previous) actionRow.insertBefore(previousEpisode, detail.favorite);
         seriesView.appendChild(overview);
 
         var picker = make('section', '', 'fl-series-picker');
@@ -1322,13 +1517,9 @@ function installFarsiLandTv(css, versionName, themeName) {
             card.dataset.flTitleKey = item.key;
             card.dataset.flEpisode = item.url;
             card.setAttribute('aria-label', item.title + (item.position > 0 ? '، ادامه از ' + clock(item.position) : ''));
-            if (item.poster && knownUrl(item.poster)) {
-                var image = make('img', '', 'fl-resume-poster');
-                image.src = item.poster;
-                image.alt = '';
-                image.addEventListener('error', function () { image.remove(); });
-                card.appendChild(image);
-            }
+            var poster = item.poster && knownUrl(item.poster) ? item.poster : null;
+            var cover = artStore()[item.url] || null;
+            card.appendChild(artwork(cover, poster));
             var body = make('span', '', 'fl-resume-details');
             var title = make('span', item.title, 'fl-resume-title');
             title.dir = 'auto';
@@ -1338,12 +1529,18 @@ function installFarsiLandTv(css, versionName, themeName) {
                 episode.dir = 'auto';
                 body.appendChild(episode);
             }
+            card.appendChild(make('span', '▶ ادامهٔ پخش', 'fl-resume-cue'));
             if (item.duration > 0) {
-                var progress = make('progress');
-                progress.max = item.duration;
-                progress.value = item.position;
+                // A thin bar of the real saved position.
+                var share = Math.max(0, Math.min(1, item.position / item.duration));
+                var progress = make('span', '', 'fl-progress');
+                progress.setAttribute('role', 'progressbar');
                 progress.setAttribute('aria-label', 'پیشرفت تماشا');
-                body.appendChild(progress);
+                progress.setAttribute('aria-valuenow', String(Math.round(share * 100)));
+                var fill = make('span');
+                fill.style.width = Math.max(share * 100, share > 0 ? 3 : 0) + '%';
+                progress.appendChild(fill);
+                card.appendChild(progress);
                 var time = make('span', clock(item.position) + ' / ' + clock(item.duration), 'fl-resume-time');
                 time.dir = 'ltr';
                 body.appendChild(time);
@@ -1352,7 +1549,8 @@ function installFarsiLandTv(css, versionName, themeName) {
             row.appendChild(card);
         });
         continueRow.appendChild(row);
-        document.body.insertBefore(continueRow, (vpnHome || toolbar).nextSibling);
+        document.body.insertBefore(continueRow, toolbar.nextSibling);
+        discoverCovers(items);
         if (!overlay() && (oldIndex >= 0 || !restored)) {
             var cards = all('.fl-resume-card', row);
             var replacement = cards.find(function (card) {
@@ -1361,6 +1559,138 @@ function installFarsiLandTv(css, versionName, themeName) {
             });
             select(replacement || cards[Math.min(Math.max(oldIndex, 0), cards.length - 1)], true);
         }
+    }
+
+    // Recommendations (1.32): four real titles from the home page at a time. The group rotates every 12 seconds
+    // only while focus is in the top menu, pauses as soon as focus enters the row, and pages at its edges.
+    function recPool() {
+        var covers = {};
+        all('article.homeslider').forEach(function (slide) {
+            var art = q('[data-bg]', slide);
+            var id = (slide.id || '').replace(/^post-/, '');
+            var value = art && uploadUrl(art.getAttribute('data-bg'));
+            if (id && value) covers[id] = value;
+        });
+        var seen = {};
+        var pool = [];
+        all('#featured-titles article.item, #dt_contenedor article.item.tvshows, #dt_contenedor article.item.movies').forEach(function (article) {
+            if (article.closest('.cloned')) return;
+            var anchor = all('a[href]', article).find(function (a) {
+                return catalogueLink(a, /^\/(?:tvshows|movies|episodes)\/[^/]+/);
+            });
+            if (!anchor || seen[anchor.href]) return;
+            var image = q('.poster img', article) || q('img', article);
+            var poster = image && uploadUrl(image.getAttribute('data-src') || image.getAttribute('src'));
+            var heading = q('h3', article);
+            var title = (heading && heading.textContent.trim()) || (image && image.alt) || '';
+            if (!title) return;
+            seen[anchor.href] = true;
+            var id = (article.id || '').replace(/^post-(?:featured-)?/, '');
+            var known = artStore()[anchor.href];
+            // The site names a title's wide image "<poster>-cover"; try it once and remember the answer.
+            var guess = poster && known === undefined ? poster.replace(/(?:-\d+x\d+)?(\.[a-z]+)$/i, '-cover$1') : null;
+            pool.push({url: anchor.href, title: title, poster: poster, cover: covers[id] || known || null, guess: guess,
+                kind: /\/movies\//.test(anchor.pathname) ? 'فیلم' : 'سریال'});
+        });
+        return pool;
+    }
+
+    function recCard(item) {
+        var card = make('a', '', 'fl-rec-card');
+        card.href = item.url;
+        card.setAttribute('aria-label', item.title + '، ' + item.kind);
+        var wide = item.cover || item.guess;
+        card.appendChild(artwork(wide, item.poster, function () {
+            if (!item.cover && item.guess) { item.cover = item.guess; saveArt(item.url, item.guess); }
+        }, function () {
+            if (!item.cover && item.guess) { item.guess = null; saveArt(item.url, ''); }
+        }));
+        var caption = make('span', '', 'fl-rec-caption');
+        var title = make('span', item.title, 'fl-rec-title');
+        title.dir = 'auto';
+        caption.appendChild(title);
+        caption.appendChild(make('span', item.kind, 'fl-rec-kind'));
+        card.appendChild(caption);
+        return card;
+    }
+
+    function renderRecs(start, focusIndex, motion) {
+        var count = recs.pool.length;
+        recs.start = ((start % count) + count) % count;
+        var cards = [];
+        for (var i = 0; i < Math.min(recs.size, count); i++) cards.push(recCard(recs.pool[(recs.start + i) % count]));
+        recs.row.textContent = '';
+        cards.forEach(function (card) { recs.row.appendChild(card); });
+        recs.row.setAttribute('data-fl-motion', motion || 'fade');
+        recs.row.classList.remove('fl-recs-enter');
+        void recs.row.offsetWidth;
+        recs.row.classList.add('fl-recs-enter');
+        var pages = Math.ceil(count / recs.size);
+        recs.dots.textContent = '';
+        if (pages > 1) {
+            var page = Math.floor(recs.start / recs.size) % pages;
+            for (var p = 0; p < pages; p++) recs.dots.appendChild(make('span', '', p === page ? 'fl-dot fl-dot-on' : 'fl-dot'));
+        }
+        recs.remaining = REC_INTERVAL;
+        if (focusIndex !== null && focusIndex !== undefined) select(cards[Math.min(focusIndex, cards.length - 1)], true);
+    }
+
+    function recTick() {
+        if (!recs || !recs.section.isConnected) return;
+        if (current && recs.row.contains(current)) {
+            recs.inside = true;
+            return;
+        }
+        if (recs.inside) {
+            recs.inside = false;
+            recs.remaining = REC_INTERVAL;
+        }
+        var box = recs.row.getBoundingClientRect();
+        var shown = box.height > 0 && box.top < window.innerHeight && box.bottom > 0;
+        var inMenu = !!current && toolbar.contains(current);
+        if (!inMenu || !shown || document.hidden || overlay() || recs.pool.length <= recs.size) return;
+        recs.remaining -= 1000;
+        if (recs.remaining <= 0) renderRecs(recs.start + recs.size, null, 'fade');
+    }
+
+    function mountRecommendations() {
+        if (!isHome || recs || !toolbar) return;
+        var pool = recPool();
+        if (!pool.length) return;
+        var section = make('section', '', 'fl-recs');
+        section.dir = 'rtl';
+        var head = make('div', '', 'fl-recs-head');
+        var heading = make('h2', 'پیشنهادها');
+        heading.id = 'fl-recs-heading';
+        section.setAttribute('aria-labelledby', heading.id);
+        head.appendChild(heading);
+        var dots = make('span', '', 'fl-dots');
+        dots.setAttribute('aria-hidden', 'true');
+        head.appendChild(dots);
+        section.appendChild(head);
+        var row = make('div', '', 'fl-recs-row');
+        section.appendChild(row);
+        // Our row replaces the site's featured carousel; the other site rows stay below.
+        all('#featured-titles, #featload').forEach(function (element) { element.classList.add('fl-replaced'); });
+        all('#dt_contenedor header').forEach(function (siteHeader) {
+            var title = q('h2', siteHeader);
+            if (title && /^(?:Featured Titles|پیشنهادها)$/.test(title.textContent.trim())) siteHeader.classList.add('fl-replaced');
+        });
+        document.body.insertBefore(section, continueRow ? continueRow.nextSibling : toolbar.nextSibling);
+        recs = {section: section, row: row, dots: dots, pool: pool, size: 4, start: 0, remaining: REC_INTERVAL, inside: false};
+        // Returning from a title shows its group again; otherwise each visit starts at the next group.
+        var back = keyToRestore.indexOf('link:') === 0 ? pool.findIndex(function (item) {
+            return 'link:' + item.url === keyToRestore;
+        }) : -1;
+        var start = back;
+        if (back < 0) {
+            var visit = 0;
+            try { visit = Number(localStorage.getItem('fl:recs-visit')) || 0; } catch (_) {}
+            try { localStorage.setItem('fl:recs-visit', String(visit + 1)); } catch (_) {}
+            start = pool.length > recs.size ? (visit * recs.size) % pool.length : 0;
+        }
+        renderRecs(start, null, 'fade');
+        window.setInterval(recTick, 1000);
     }
 
     function connectPlayback(event) {
@@ -1807,6 +2137,7 @@ function installFarsiLandTv(css, versionName, themeName) {
 
     function refresh(refocus) {
         markRows();
+        mountRecommendations();
         markQuality();
         mountEpisodeMenu();
         mountMovie();

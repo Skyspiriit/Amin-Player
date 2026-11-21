@@ -94,7 +94,9 @@ class MainActivity : Activity() {
 
     // The colour theme is stored here, not in the page, so it also applies on the player site.
     private fun navigationScript(): String {
-        val theme = playbackSettings.getString("theme", null)?.takeIf { it in THEMES } ?: THEMES.first()
+        val saved = playbackSettings.getString("theme", null)
+        val theme = AppThemes.forSaved(saved)
+        if (saved != null && saved != theme) playbackSettings.edit().putString("theme", theme).apply()
         return "$navigationParts, ${JSONObject.quote(theme)}) && window.FarsiLandTv.watchInfo()"
     }
 
@@ -320,7 +322,7 @@ class MainActivity : Activity() {
     private fun receivePlayback(page: String, message: JSONObject) {
         val event = message.optString("event")
         if (event == "theme") {
-            message.optString("theme").takeIf { it in THEMES }?.let {
+            message.optString("theme").takeIf { it in AppThemes.ids }?.let {
                 playbackSettings.edit().putString("theme", it).apply()
             }
             return
@@ -824,6 +826,7 @@ class MainActivity : Activity() {
         .put("label", VpnStatus.current.actionLabel(this))
         .put("status", VpnStatus.current.statusLabel(this))
         .put("stopping", VpnStatus.current.phase == VpnPhase.STOPPING)
+        .put("phase", VpnStatus.current.phase.name)
 
     private fun sendVpnState() {
         if (::fallbackVpn.isInitialized) fallbackVpn.text = VpnStatus.current.actionLabel(this)
@@ -874,8 +877,7 @@ class MainActivity : Activity() {
 
     companion object {
         private const val HOME = "https://farsiland.com/home"
-        private val THEMES = listOf("midnight", "saffron", "turquoise", "pomegranate", "garden",
-            "galaxy", "forest", "nights", "ice", "dragon", "castle", "orbit", "theatre", "rose", "highlands")
+
         private val SELECT_KEYS = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BUTTON_A,
             KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER)
 
