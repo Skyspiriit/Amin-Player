@@ -473,11 +473,6 @@ class MainActivity : Activity() {
         playbackPort?.postMessage(WebMessage(JSONObject().put("history", watchHistory.forHome()).toString()))
     }
 
-    // Test hook: `am start --ez amin.forceIntroMotion true` plays the full animation even with animations off.
-    private fun reducedMotion(): Boolean = !intent.getBooleanExtra("amin.forceIntroMotion", false) && (
-        Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f ||
-            Settings.Global.getFloat(contentResolver, Settings.Global.TRANSITION_ANIMATION_SCALE, 1f) == 0f)
-
     private fun startIntro() {
         val mark = runCatching { BitmapFactory.decodeResource(resources, R.drawable.intro_mark) }.getOrNull() ?: return
         if (playbackSettings.getBoolean(INTRO_SOUND, true)) {
@@ -489,7 +484,8 @@ class MainActivity : Activity() {
                 introSoundId = load(this@MainActivity, R.raw.intro_forge, 1)
             }
         }
-        intro = IntroView(this, mark, reducedMotion(), onImpact = {
+        // Always the full animation, even where Android's animations are off (decided for her box, 1.33).
+        intro = IntroView(this, mark, reducedMotion = false, onImpact = {
             if (introSoundReady && resumed) introSound?.play(introSoundId, INTRO_VOLUME, INTRO_VOLUME, 1, 0, 1f)
         }, onFormed = {
             if (ready || failed) endIntro()

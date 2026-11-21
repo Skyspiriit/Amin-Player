@@ -27,10 +27,11 @@ test('the impact uses the media stream at a moderate level and stops when the ap
     assert.match(activity, /override fun onPause\(\) \{\s+resumed = false\s+introSound\?\.autoPause\(\)\s+endIntro\(immediate = true\)/);
 });
 
-test('the intro lasts about 2.5 s, honours reduced motion and the bundled assets exist', () => {
+test('the intro lasts about 2.5 s, always animates and the bundled assets exist', () => {
     const end = Number(intro.match(/const val END = (\d+)L/)[1]);
     assert.ok(end >= 2000 && end <= 3000, String(end));
-    assert.match(activity, /ANIMATOR_DURATION_SCALE/);
+    assert.match(activity, /IntroView\(this, mark, reducedMotion = false/);
+    assert.equal(/ANIMATOR_DURATION_SCALE|forceIntroMotion/.test(activity), false);
     for (const file of ['res/raw/intro_forge.wav', 'res/drawable-nodpi/intro_mark.png', 'res/mipmap-anydpi-v26/ic_launcher.xml', 'res/drawable-xhdpi/tv_banner.png'])
         assert.ok(fs.existsSync(path.join(root, 'app/src/main', file)), file);
 });
