@@ -2,7 +2,11 @@ package com.enigma.farsilandtv
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.media.AudioAttributes
+import android.media.SoundPool
+import android.provider.Settings
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.StateListDrawable
 import android.net.Uri
@@ -64,7 +68,7 @@ class MainActivity : Activity() {
     private var playerRemote = PlayerRemote.PAGE
     private var quality: Int? = null
     private var finishedEpisode = false
-    private var resumed = false
+    @Volatile private var resumed = false
     private var generation = 0
     private var ready = false
     private var failed = false
@@ -74,6 +78,10 @@ class MainActivity : Activity() {
     private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
     private val loadWindow = PageLoadWindow()
     private var prepareRetry: Runnable? = null
+    private var intro: IntroView? = null
+    private var introSound: SoundPool? = null
+    private var introSoundId = 0
+    private var introSoundReady = false
     private val slowLoading = Runnable {
         if (!ready && !failed && !isFinishing) message.setText(R.string.loading_slow)
     }
@@ -97,18 +105,22 @@ class MainActivity : Activity() {
         val saved = playbackSettings.getString("theme", null)
         val theme = AppThemes.forSaved(saved)
         if (saved != null && saved != theme) playbackSettings.edit().putString("theme", theme).apply()
-        return "$navigationParts, ${JSONObject.quote(theme)}) && window.FarsiLandTv.watchInfo()"
+        val startup = JSONObject().put("animation", playbackSettings.getBoolean(INTRO_ANIMATION, true))
+            .put("sound", playbackSettings.getBoolean(INTRO_SOUND, true))
+        return "$navigationParts, ${JSONObject.quote(theme)}, $startup) && window.FarsiLandTv.watchInfo()"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Quality is chosen per viewing (see connectPlayback); drop the old saved preference.
         playbackSettings.edit().remove("preferred_quality").apply()
-        root = FrameLayout(this).apply { setBackgroundColor(Color.rgb(11, 18, 32)) }
+        root = FrameLayout(this).apply { setBackgroundColor(IntroView.CHARCOAL) }
         createWebView()
         createStatus()
         setContentView(root)
         hideSystemBars()
+        // The intro plays once per fresh launch, never when Android recreates the screen.
+        if (savedInstanceState == null && playbackSettings.getBoolean(INTRO_ANIMATION, true)) startIntro()
         playbackReturn = savedInstanceState?.getString("playbackReturn")?.takeIf(::isWatchPage)
         savedInstanceState?.getStringArrayList("catalogueHistory")
             ?.filter(::isCatalogueSite)?.let(catalogueHistory::addAll)
@@ -124,7 +136,7 @@ class MainActivity : Activity() {
 
     private fun createWebView() {
         web = WebView(this).apply {
-            setBackgroundColor(Color.rgb(11, 18, 32))
+            setBackgroundColor(IntroView.CHARCOAL)
             isFocusable = true
             isFocusableInTouchMode = true
             settings.apply {
@@ -154,7 +166,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             setPadding(dp(40), dp(24), dp(40), dp(24))
-            setBackgroundColor(Color.rgb(11, 18, 32))
+            setBackgroundColor(IntroView.CHARCOAL)
             isClickable = true
             isFocusableInTouchMode = true
         }
@@ -321,6 +333,11 @@ class MainActivity : Activity() {
 
     private fun receivePlayback(page: String, message: JSONObject) {
         val event = message.optString("event")
+        if (event == "startup") {
+            playbackSettings.edit().putBoolean(INTRO_ANIMATION, message.optBoolean("animation", true))
+                .putBoolean(INTRO_SOUND, message.optBoolean("sound", true)).apply()
+            return
+        }
         if (event == "theme") {
             message.optString("theme").takeIf { it in AppThemes.ids }?.let {
                 playbackSettings.edit().putString("theme", it).apply()
@@ -456,6 +473,49 @@ class MainActivity : Activity() {
         playbackPort?.postMessage(WebMessage(JSONObject().put("history", watchHistory.forHome()).toString()))
     }
 
+    // Test hook: `am start --ez amin.forceIntroMotion true` plays the full animation even with animations off.
+    private fun reducedMotion(): Boolean = !intent.getBooleanExtra("amin.forceIntroMotion", false) && (
+        Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f ||
+            Settings.Global.getFloat(contentResolver, Settings.Global.TRANSITION_ANIMATION_SCALE, 1f) == 0f)
+
+    private fun startIntro() {
+        val mark = runCatching { BitmapFactory.decodeResource(resources, R.drawable.intro_mark) }.getOrNull() ?: return
+        if (playbackSettings.getBoolean(INTRO_SOUND, true)) {
+            // Media stream: follows the media volume and is silent when it is muted.
+            introSound = SoundPool.Builder().setMaxStreams(1).setAudioAttributes(AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build().apply {
+                setOnLoadCompleteListener { _, _, state -> introSoundReady = state == 0 }
+                introSoundId = load(this@MainActivity, R.raw.intro_forge, 1)
+            }
+        }
+        intro = IntroView(this, mark, reducedMotion(), onImpact = {
+            if (introSoundReady && resumed) introSound?.play(introSoundId, INTRO_VOLUME, INTRO_VOLUME, 1, 0, 1f)
+        }, onFormed = {
+            if (ready || failed) endIntro()
+        })
+        root.addView(intro, FrameLayout.LayoutParams(-1, -1))
+        intro?.requestFocus()
+    }
+
+    // Fades the intro into whatever is underneath: the home page, its loading screen, or the error screen.
+    private fun endIntro(immediate: Boolean = false) {
+        val view = intro ?: return
+        intro = null
+        view.stop()
+        val finish: () -> Unit = {
+            root.removeView(view)
+            introSound?.release()
+            introSound = null
+            if (status.visibility == View.VISIBLE) (if (retry.visibility == View.VISIBLE) retry else status).requestFocus()
+            else web.requestFocus()
+        }
+        if (immediate) {
+            introSound?.autoPause()
+            finish()
+        } else view.fadeOut(finish)
+    }
+
     private fun openHome() {
         hideFullscreen()
         playbackReturn = null
@@ -498,6 +558,7 @@ class MainActivity : Activity() {
         retry.visibility = View.VISIBLE
         home.visibility = View.VISIBLE
         retry.requestFocus()
+        if (intro?.holding == true) endIntro()
     }
 
     private fun preparePage(view: WebView, url: String) {
@@ -528,6 +589,7 @@ class MainActivity : Activity() {
             loadWindow.finish()
             status.visibility = View.GONE
             web.requestFocus()
+            if (intro?.holding == true) endIntro()
             runPage("refresh(true)")
             advanceUpdater()
         }
@@ -698,6 +760,10 @@ class MainActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (intro != null) {
+            if (event.action == KeyEvent.ACTION_UP) endIntro()
+            return true
+        }
         if (routePlayerDirection(event)) return true
         val media = when (event.keyCode) {
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> "toggle"
@@ -800,6 +866,8 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         resumed = false
+        introSound?.autoPause()
+        endIntro(immediate = true)
         VpnStatus.remove(vpnObserver)
         playbackLaunch = null
         if (!rendererGone) {
@@ -849,6 +917,9 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        intro = null
+        introSound?.release()
+        introSound = null
         closePlaybackPort()
         updater.close()
         hideFullscreen()
@@ -876,6 +947,10 @@ class MainActivity : Activity() {
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
 
     companion object {
+        private const val INTRO_ANIMATION = "intro_animation"
+        private const val INTRO_SOUND = "intro_sound"
+        // Comfortably below full scale so the impact sits near ordinary programme loudness.
+        private const val INTRO_VOLUME = 0.7f
         private const val HOME = "https://farsiland.com/home"
 
         private val SELECT_KEYS = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BUTTON_A,

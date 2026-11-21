@@ -11,7 +11,7 @@ const kotlin = fs.readFileSync(path.join(root, 'app/src/main/java/com/enigma/far
 const jsIds = [...script.match(/var themes = \[([\s\S]*?)\];/)[1].matchAll(/id: '([a-z]+)'/g)].map(m => m[1]);
 const jsLegacy = Object.fromEntries([...script.match(/var legacyThemes = \{([\s\S]*?)\};/)[1].matchAll(/([a-z]+): '([a-z]+)'/g)].map(m => [m[1], m[2]]));
 const ktIds = [...kotlin.match(/val ids = listOf\(([^)]*)\)/)[1].matchAll(/"([a-z]+)"/g)].map(m => m[1]);
-const ktLegacy = Object.fromEntries([...kotlin.match(/private val legacy = mapOf\(([\s\S]*?)\)\n/)[1].matchAll(/"([a-z]+)" to "([a-z]+)"/g)].map(m => [m[1], m[2]]));
+const ktLegacy = Object.fromEntries([...kotlin.match(/private val legacy = mapOf\(([\s\S]*?)\)\r?\n/)[1].matchAll(/"([a-z]+)" to "([a-z]+)"/g)].map(m => [m[1], m[2]]));
 
 test('three themes, gold cinema first (the default for fresh installs), same list in the page and the app', () => {
     assert.deepEqual(jsIds, ['cinema', 'turquoise', 'pomegranate']);

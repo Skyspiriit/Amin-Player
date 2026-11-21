@@ -15,8 +15,8 @@ android {
         applicationId = "com.enigma.farsilandtv"
         minSdk = 23
         targetSdk = 35
-        versionCode = 33
-        versionName = "1.32"
+        versionCode = 34
+        versionName = "1.33"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Optional device test build; normal builds still contain every supported ABI.
         providers.gradleProperty("aminTargetAbi").orNull?.let { abi ->

@@ -1,4 +1,4 @@
-function installFarsiLandTv(css, versionName, themeName) {
+function installFarsiLandTv(css, versionName, themeName, startup) {
     'use strict';
 
     var host = location.hostname.replace(/^www\./, '');
@@ -115,6 +115,7 @@ function installFarsiLandTv(css, versionName, themeName) {
         play: '<path class="f" d="M8 5.2v13.6c0 .8.9 1.3 1.6.8l10-6.8c.6-.4.6-1.2 0-1.6l-10-6.8C8.9 3.9 8 4.4 8 5.2z"/>',
         episodes: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M8 9.5h8M8 14.5h5"/>',
         previous: '<path d="M6 5.5v13"/><path class="f" d="M18.8 11.2 10.6 5.8c-.6-.4-1.4 0-1.4.8v10.8c0 .8.8 1.2 1.4.8l8.2-5.4c.6-.4.6-1.2 0-1.6z"/>',
+        settings: '<circle cx="12" cy="12" r="3.1"/><path d="M12 3.2v2.6M12 18.2v2.6M3.2 12h2.6M18.2 12h2.6M5.8 5.8l1.8 1.8M16.4 16.4l1.8 1.8M5.8 18.2l1.8-1.8M16.4 7.6l1.8-1.8"/><circle cx="12" cy="12" r="6.6"/>',
         film: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9h17M3.5 15h17M8 5v4M16 5v4M8 15v4M16 15v4"/>'
     };
 
@@ -290,7 +291,8 @@ function installFarsiLandTv(css, versionName, themeName) {
     }
 
     function buildThemePicker() {
-        themeDialog = buildOverlay('رنگ و فضای برنامه');
+        // 1.33: one settings dialog for the theme and the startup intro.
+        themeDialog = buildOverlay('تنظیمات');
         themeDialog.classList.add('fl-theme-overlay');
         var box = q('.fl-dialog', themeDialog);
         var options = make('div', '', 'fl-theme-options');
@@ -323,11 +325,41 @@ function installFarsiLandTv(css, versionName, themeName) {
             options.appendChild(choice);
             return choice;
         });
+        box.appendChild(make('h3', 'رنگ و فضای برنامه', 'fl-settings-heading'));
         box.appendChild(options);
-        var trigger = button('رنگ‌ها', function () {
+        box.appendChild(make('h3', 'آغاز برنامه', 'fl-settings-heading'));
+        var intro = {animation: !startup || startup.animation !== false, sound: !startup || startup.sound !== false};
+        var switches = make('div', '', 'fl-settings-switches');
+        function toggle(key, label) {
+            var control = button('', function () {
+                if (control.disabled) return;
+                intro[key] = !intro[key];
+                postPlayback({event: 'startup', animation: intro.animation, sound: intro.sound});
+                show();
+            });
+            control.classList.add('fl-switch');
+            control.appendChild(make('span', label, 'fl-label'));
+            control.appendChild(make('span', '', 'fl-switch-state'));
+            switches.appendChild(control);
+            return control;
+        }
+        var animationSwitch = toggle('animation', 'انیمیشن آغاز برنامه');
+        var soundSwitch = toggle('sound', 'صدای آغاز برنامه');
+        function show() {
+            [[animationSwitch, intro.animation], [soundSwitch, intro.sound]].forEach(function (pair) {
+                pair[0].setAttribute('aria-pressed', String(pair[1]));
+                q('.fl-switch-state', pair[0]).textContent = pair[1] ? 'روشن' : 'خاموش';
+            });
+            // The sound belongs to the animation; without it there is nothing to play.
+            soundSwitch.setAttribute('aria-disabled', String(!intro.animation));
+        }
+        show();
+        box.appendChild(switches);
+        box.appendChild(make('p', 'صدا با بلندی صدای تلویزیون پخش می‌شود و وقتی صدا بسته است شنیده نمی‌شود.', 'fl-settings-note'));
+        var trigger = button('تنظیمات', function () {
             openOverlay(themeDialog, q('[aria-pressed="true"]', options), trigger);
         });
-        withIcon(trigger, 'palette', 'رنگ‌ها');
+        withIcon(trigger, 'settings', 'تنظیمات');
         trigger.classList.add('fl-theme-trigger');
         trigger.setAttribute('aria-haspopup', 'dialog');
         return trigger;
