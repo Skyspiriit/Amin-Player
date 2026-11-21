@@ -4,15 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class DriveVpnPolicyTest {
-    @Test fun searchIsRestrictedToExactVpnFoldersAndSelectedChildren() {
-        assertEquals("trashed = false and mimeType = 'application/vnd.google-apps.folder' and name = 'VPN'",
-            DriveVpnQuery.FOLDERS)
-        assertEquals("trashed = false and 'folder_123-abc' in parents and mimeType != 'application/vnd.google-apps.folder'",
-            DriveVpnQuery.children("folder_123-abc"))
-        assertTrue(runCatching { DriveVpnQuery.children("x' or trashed = false") }.isFailure)
-    }
-
+class VpnImportValidationTest {
     @Test fun importedFilesKeepTheirPayloadAndNormalizeTheTextWrapper() {
         val url = "https://freesocks.org/sub/test-fixture"
         assertEquals(url, VpnImport.text("\uFEFF$url\r\n"))

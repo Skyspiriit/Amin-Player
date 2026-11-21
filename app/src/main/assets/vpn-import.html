@@ -5,44 +5,88 @@
 <meta name="referrer" content="no-referrer">
 <title>Amin Player · دریافت خصوصی VPN</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#0d1619;color:#edf7f6;font:17px/1.8 system-ui,sans-serif;padding:28px 18px}main{max-width:520px;margin:4vh auto;background:#17282d;border:1px solid #36575e;border-radius:22px;padding:28px}h1{font-size:25px;margin:0 0 16px}p{color:#c1d5d8}label{display:block;margin:20px 0 8px}input,button{width:100%;font:inherit;border-radius:10px;padding:13px;border:1px solid #69898f}input{background:#0d1619;color:#fff}#code{direction:ltr;text-align:center;letter-spacing:.25em}button{margin-top:24px;background:#97e6d4;color:#10201f;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:wait}input:focus-visible,button:focus-visible{outline:3px solid #fff;outline-offset:3px}small{display:block;color:#b7ccce;margin-top:20px;font-size:14px}#result{min-height:2em;color:#e6fff7}footer{font-size:13px;color:#9bb5b9;margin-top:24px}input[type=file]{font-size:14px;direction:ltr}
+*{box-sizing:border-box}body{margin:0;background:#0d1619;color:#edf7f6;font:17px/1.8 system-ui,sans-serif;padding:24px 16px}main{max-width:540px;margin:3vh auto;background:#17282d;border:1px solid #36575e;border-radius:22px;padding:25px}h1{font-size:25px;margin:0 0 14px}p{color:#c1d5d8}label{display:block;margin:18px 0 8px}input,button{width:100%;font:inherit;border-radius:10px;padding:13px;border:1px solid #69898f}input{background:#0d1619;color:#fff}#code{direction:ltr;text-align:center;letter-spacing:.25em}button{margin-top:18px;background:#97e6d4;color:#10201f;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:wait}input:focus-visible,button:focus-visible{outline:3px solid #fff;outline-offset:3px}small,footer{display:block;color:#b7ccce;margin-top:16px;font-size:14px}#result{min-height:2em;color:#e6fff7}input[type=file]{font-size:14px;direction:ltr}.alternative{text-align:center;margin-top:20px}#selected{overflow-wrap:anywhere}
 </style>
 <main>
 <h1 dir="ltr">Amin Player</h1>
 <p>دریافت خصوصی فایل VPN از تلفن یا رایانه</p>
-<p>فایل را از پوشهٔ خصوصی <b dir="ltr">VPN</b> در Google Drive دانلود کنید، یا آن را از برنامهٔ Files انتخاب کنید. این انتقال فقط به تلویزیون در همین شبکه انجام می‌شود.</p>
+<p>تلفن و تلویزیون به یک وای‌فای وصل باشند. ابتدا کد تلویزیون را وارد کنید؛ سپس فایل را از Google Drive یا از فایل‌های تلفن انتخاب کنید. نام فایل و پوشه مهم نیست.</p>
 <form id="upload" autocomplete="off">
-<label for="code">کد ۸ رقمی روی تلویزیون</label>
+<label for="code">۱. کد ۸ رقمی روی تلویزیون</label>
 <input id="code" type="password" inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" autocomplete="off" required aria-label="TV pairing code">
-<label for="file">فایل اشتراک یا تنظیمات VPN</label>
-<input id="file" type="file" accept=".txt,.json,.conf,.vless,text/plain,application/json" required>
-<small>متن UTF-8، حداکثر ۱ مگابایت · پیوند HTTPS اشتراک، VLESS یا Xray سازگار</small>
-<button id="send" type="submit">ارسال به تلویزیون · Send to TV</button>
+<button id="drive" type="button">۲. انتخاب از Google Drive</button>
+<small>با حساب Google خودتان وارد شوید و فایل را از هر پوشه‌ای انتخاب کنید. دسترسی فقط به فایل‌هایی است که انتخاب می‌کنید. اجازهٔ خواندن کل Drive درخواست نمی‌شود.</small>
+<p class="alternative">یا از فایل‌های همین تلفن:</p>
+<label for="file">انتخاب فایل از تلفن یا رایانه</label>
+<input id="file" type="file" required>
+<p id="selected"></p>
+<small>محتوای متنی UTF-8، حداکثر ۱ مگابایت · اشتراک HTTPS، پیوند VLESS یا Xray سازگار</small>
+<button id="send" type="submit">۳. ارسال به تلویزیون</button>
 </form>
 <p id="result" role="status" aria-live="polite"></p>
-<footer>پس از ارسال، «ذخیره» را با کنترل تلویزیون تأیید کنید. VPN خودکار وصل نمی‌شود. اتصال پس از یک دریافت یا ۱۰ دقیقه بسته می‌شود.<br><span lang="en" dir="ltr">Same Wi-Fi. Encrypted transfer. Confirm Save on the TV.</span></footer>
+<footer>۴. پس از ارسال، «ذخیره» را با کنترل تلویزیون تأیید کنید. تا قبل از تأیید شما، تنظیمات قبلی عوض نمی‌شود. VPN خودکار وصل نمی‌شود. این دریافت پس از ذخیره یا ۱۰ دقیقه بسته می‌شود.</footer>
 </main>
 <script>
 'use strict';
-const form=document.getElementById('upload'),code=document.getElementById('code'),file=document.getElementById('file'),send=document.getElementById('send'),result=document.getElementById('result');
-form.addEventListener('submit',async event=>{
-  event.preventDefault();
-  const selected=file.files[0];
-  if(!selected||!selected.size||selected.size>1048576){result.textContent='فایل متنی خالی نباشد و حداکثر ۱ مگابایت باشد. / Choose a file up to 1 MB.';return;}
-  if(!/^[0-9]{8}$/.test(code.value)){result.textContent='کد ۸ رقمی روی تلویزیون را وارد کنید. / Enter the 8-digit TV code.';return;}
-  send.disabled=true;
-  let bytes;
-  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+const PICKER_ORIGIN='https://skyspiriit.github.io',PICKER_URL=PICKER_ORIGIN+'/Amin-Player/drive-import/',MAX_BYTES=1048576;
+const form=document.getElementById('upload'),code=document.getElementById('code'),file=document.getElementById('file'),send=document.getElementById('send'),drive=document.getElementById('drive'),result=document.getElementById('result'),selected=document.getElementById('selected');
+let driveBytes=null,bridge=null;
+function clearDrive(){if(driveBytes)driveBytes.fill(0);driveBytes=null;file.required=true;selected.textContent='';}
+function closeBridge(){if(!bridge)return;const previous=bridge;bridge=null;clearTimeout(previous.timer);clearInterval(previous.closedPoll);try{previous.popup.close();}catch{}drive.disabled=false;}
+function validCode(){if(/^[0-9]{8}$/.test(code.value))return true;result.textContent='کد ۸ رقمی روی تلویزیون را وارد کنید.';code.focus();return false;}
+function acceptDriveMessage(event,state,now){
+  return !!state&&event.origin===PICKER_ORIGIN&&event.source===state.popup&&now<state.deadline&&event.data&&event.data.session===state.nonce;
+}
+file.addEventListener('change',()=>{clearDrive();if(file.files[0])selected.textContent='فایل انتخاب شد: '+file.files[0].name;});
+code.addEventListener('input',()=>{if(bridge)closeBridge();});
+drive.addEventListener('click',async()=>{
+  if(!validCode())return;
+  closeBridge();clearDrive();file.value='';
+  const nonce=Array.from(crypto.getRandomValues(new Uint8Array(16)),x=>x.toString(16).padStart(2,'0')).join('');
+  const popup=window.open('about:blank','amin-drive-'+nonce,'popup,width=760,height=820');
+  if(!popup){result.textContent='باز شدن پنجره بسته شده است. اجازهٔ باز شدن پنجره را برای این صفحه بدهید، یا فایل را از تلفن انتخاب کنید.';return;}
+  const state={popup,nonce,deadline:Date.now()+600000};bridge=state;drive.disabled=true;
+  const abort=new AbortController(),timeout=setTimeout(()=>abort.abort(),15000);
   try{
-    result.textContent='در حال ارسال خصوصی… / Sending privately…';
-    bytes=new Uint8Array(await selected.arrayBuffer());
-    const response=await fetch('/import',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Amin-Pairing-Code':code.value},body:bytes,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:controller.signal});
-    if(response.status===202){form.reset();form.hidden=true;result.textContent='فایل ارسال شد. اکنون پیام تلویزیون را بررسی و «ذخیره» را تأیید کنید. / Sent. Check the TV and confirm Save.';}
-    else if(response.status===401)result.textContent='کد درست نیست. پس از ۵ اشتباه اتصال بسته می‌شود. / Incorrect code. Five failed attempts close the session.';
-    else if(response.status===409)result.textContent='ابتدا فایل قبلی را روی تلویزیون تأیید یا لغو کنید. / Confirm or cancel the previous file on the TV.';
-    else result.textContent='ارسال پذیرفته نشد. صفحهٔ تلویزیون را بررسی کنید. / Transfer rejected. Check the TV.';
-  }catch{result.textContent='اتصال بسته شد یا در دسترس نیست. دریافت از تلفن را روی تلویزیون دوباره باز کنید. / Session closed or unreachable. Reopen import on the TV.';}
-  finally{clearTimeout(timeout);if(bytes)bytes.fill(0);send.disabled=false;}
+    result.textContent='در حال بررسی کد تلویزیون…';
+    const response=await fetch('/pair',{method:'POST',headers:{'X-Amin-Pairing-Code':code.value},credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer',signal:abort.signal});
+    if(bridge!==state)return;
+    if(!response.ok){result.textContent=response.status===401?'کد درست نیست. کد تلویزیون را بررسی کنید.':'این دریافت بسته شده است. کد QR جدید را از تلویزیون بگیرید.';closeBridge();return;}
+    const info=await response.json();if(!Number.isFinite(info.expiresIn)||info.expiresIn<=0||info.expiresIn>600)throw Error('expired');
+    state.deadline=Date.now()+info.expiresIn*1000;
+    state.timer=setTimeout(()=>{if(bridge===state){result.textContent='زمان دریافت تمام شد. دریافت از تلفن را روی تلویزیون دوباره باز کنید.';closeBridge();}},info.expiresIn*1000);
+    state.closedPoll=setInterval(()=>{if(bridge===state&&popup.closed){result.textContent='انتخاب فایل لغو شد. تنظیمات تلویزیون تغییری نکرد.';closeBridge();}},500);
+    popup.location.href=PICKER_URL;
+    result.textContent='در پنجرهٔ Google، حساب خودتان و سپس فایل را انتخاب کنید.';
+  }catch{if(bridge===state){result.textContent='تلویزیون در دسترس نیست یا زمان دریافت تمام شده است. دریافت را روی تلویزیون دوباره باز کنید.';closeBridge();}}
+  finally{clearTimeout(timeout);}
 });
+window.addEventListener('message',event=>{
+  const state=bridge;if(!state||event.origin!==PICKER_ORIGIN||event.source!==state.popup||Date.now()>=state.deadline)return;
+  if(event.data?.type==='amin-drive-ready'){state.popup.postMessage({type:'amin-drive-init',session:state.nonce,expiresIn:Math.floor((state.deadline-Date.now())/1000)},PICKER_ORIGIN);return;}
+  if(!acceptDriveMessage(event,state,Date.now()))return;
+  if(event.data.type==='amin-drive-cancel'){result.textContent='انتخاب فایل لغو شد. تنظیمات تلویزیون تغییری نکرد.';closeBridge();return;}
+  if(event.data.type!=='amin-drive-file'||!(event.data.bytes instanceof ArrayBuffer))return;
+  const bytes=new Uint8Array(event.data.bytes);if(!bytes.length||bytes.length>MAX_BYTES){bytes.fill(0);result.textContent='فایل خالی یا بزرگ‌تر از ۱ مگابایت است.';closeBridge();return;}
+  clearDrive();driveBytes=bytes;file.required=false;file.value='';selected.textContent='فایل انتخاب شد: '+String(event.data.name||'فایل Google Drive').slice(0,256);
+  result.textContent='فایل انتخاب شد. اکنون «ارسال به تلویزیون» را بزنید.';closeBridge();send.focus();
+});
+form.addEventListener('submit',async event=>{
+  event.preventDefault();if(!validCode())return;
+  const local=file.files[0];if(!driveBytes&&(!local||!local.size||local.size>MAX_BYTES)){result.textContent='یک فایل غیرخالی و حداکثر ۱ مگابایت انتخاب کنید.';return;}
+  send.disabled=true;drive.disabled=true;let bytes;const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+  try{
+    bytes=driveBytes||new Uint8Array(await local.arrayBuffer());driveBytes=null;
+    if(!bytes.length||bytes.length>MAX_BYTES)throw Error('size');
+    result.textContent='در حال ارسال خصوصی به تلویزیون…';
+    const response=await fetch('/import',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Amin-Pairing-Code':code.value},body:bytes,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:controller.signal});
+    if(response.status===202){file.value='';file.required=true;selected.textContent='';result.textContent='فایل ارسال شد. روی تلویزیون «ذخیره» یا «لغو» را انتخاب کنید. اگر فایل رد شد، می‌توانید فایل دیگری انتخاب و ارسال کنید.';}
+    else if(response.status===401)result.textContent='کد درست نیست. پس از ۵ اشتباه این دریافت بسته می‌شود.';
+    else if(response.status===409)result.textContent='ابتدا پیام فایل قبلی را با کنترل تلویزیون تأیید یا لغو کنید.';
+    else result.textContent='ارسال پذیرفته نشد. پیام تلویزیون را بررسی کنید.';
+  }catch{result.textContent='اتصال بسته شد یا در دسترس نیست. دریافت از تلفن را روی تلویزیون دوباره باز کنید.';}
+  finally{clearTimeout(timeout);if(bytes)bytes.fill(0);send.disabled=false;drive.disabled=false;}
+});
+window.addEventListener('pagehide',()=>{closeBridge();clearDrive();code.value='';});
 </script>
 </html>

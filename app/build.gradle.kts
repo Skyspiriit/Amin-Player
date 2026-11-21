@@ -15,8 +15,8 @@ android {
         applicationId = "com.enigma.farsilandtv"
         minSdk = 23
         targetSdk = 35
-        versionCode = 31
-        versionName = "1.30"
+        versionCode = 32
+        versionName = "1.31"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Optional device test build; normal builds still contain every supported ABI.
         providers.gradleProperty("aminTargetAbi").orNull?.let { abi ->
@@ -67,7 +67,6 @@ val prepareVpnEngine by tasks.registering {
 dependencies {
     implementation(files(vpnEngine).builtBy(prepareVpnEngine))
     implementation("androidx.core:core:1.16.0")
-    implementation("com.google.android.gms:play-services-auth:21.6.0")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.87")
     implementation("com.google.zxing:core:3.5.4")
     testImplementation("junit:junit:4.13.2")

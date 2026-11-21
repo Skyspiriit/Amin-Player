@@ -60,8 +60,9 @@ class LocalVpnImportActivity : Activity() {
             setPadding(0, dp(6), 0, dp(6))
             isSaveEnabled = false
         }.also { parent.addView(it, LinearLayout.LayoutParams(-1, -2)) }
-        label(getString(R.string.vpn_local_import), 25f)
-        label(getString(R.string.vpn_local_guide), 16f)
+        val drive = intent.getBooleanExtra(DRIVE_IMPORT, false)
+        label(getString(if (drive) R.string.vpn_import_drive else R.string.vpn_local_import), 25f)
+        label(getString(if (drive) R.string.vpn_drive_guide else R.string.vpn_local_guide), 16f)
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val details = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         row.addView(details, LinearLayout.LayoutParams(0, -2, 1f))
@@ -212,4 +213,8 @@ class LocalVpnImportActivity : Activity() {
         qrBitmap = null
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + .5f).toInt()
+
+    companion object {
+        const val DRIVE_IMPORT = "drive-import"
+    }
 }

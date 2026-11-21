@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; frame-src https://docs.google.com https://accounts.google.com https://drive.google.com https://apis.google.com; connect-src https://www.googleapis.com https://accounts.google.com https://content.googleapis.com https://apis.google.com; img-src 'self' data: https://*.googleusercontent.com https://*.gstatic.com; base-uri 'none'; form-action 'none'">
+<title>Amin Player · انتخاب فایل از Google Drive</title>
+<link rel="stylesheet" href="picker.css">
+<main>
+  <p class="brand" dir="ltr">Amin Player</p>
+  <h1>انتخاب فایل از Google Drive</h1>
+  <ol><li>دکمهٔ زیر را بزنید و با حساب Google خودتان وارد شوید.</li><li>فایل تنظیمات را از هر پوشه‌ای انتخاب کنید و دکمهٔ انتخاب را بزنید.</li><li>به صفحهٔ تلفن برگردید، «ارسال به تلویزیون» را بزنید و سپس روی تلویزیون «ذخیره» را تأیید کنید.</li></ol>
+  <p>نام پوشه و فایل مهم نیست. دسترسی فقط به فایل‌هایی است که خودتان انتخاب می‌کنید.</p>
+  <button id="choose" disabled>انتخاب فایل از Google Drive</button>
+  <button id="cancel" class="secondary">لغو و بازگشت</button>
+  <p id="status" role="status" aria-live="polite">در حال آماده‌سازی…</p>
+  <p class="privacy">فایل انتخابی و اجازهٔ موقت Google فقط در حافظهٔ همین مرورگر نگه داشته می‌شوند. فایل روی سایت یا GitHub ذخیره نمی‌شود. VPN فقط با دستور جداگانهٔ شما وصل می‌شود. <a href="privacy.html">حریم خصوصی</a></p>
+</main>
+<script src="google-config.js" defer></script>
+<script src="drive-policy.js" defer></script>
+<script src="drive-picker.js" defer></script>
+</html>

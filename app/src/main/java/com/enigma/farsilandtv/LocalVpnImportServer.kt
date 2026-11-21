@@ -137,12 +137,18 @@ internal class LocalVpnImportServer private constructor(
             if (request.headers["host"] != url.removePrefix("https://")) { reply(peer, 400); return }
             when {
                 request.method == "GET" && request.path == "/" -> reply(peer, 200, page, "text/html; charset=utf-8")
-                request.method == "POST" && request.path == "/import" -> {
+                request.method == "POST" && request.path in setOf("/import", "/pair") -> {
                     if (request.headers["origin"] != url) { reply(peer, 403); return }
                     val supplied = request.headers["x-amin-pairing-code"].orEmpty()
                     if (!MessageDigest.isEqual(code.toByteArray(Charsets.US_ASCII), supplied.toByteArray(Charsets.US_ASCII))) {
                         reply(peer, 401)
                         if (failures.incrementAndGet() >= 5) close()
+                        return
+                    }
+                    if (request.path == "/pair") {
+                        if (request.headers["content-length"]?.toIntOrNull() != 0) { reply(peer, 400); return }
+                        val seconds = ((deadline - SystemClock.elapsedRealtime()) / 1000).coerceAtLeast(0)
+                        reply(peer, 200, "{\"expiresIn\":$seconds}".toByteArray(Charsets.UTF_8), "application/json")
                         return
                     }
                     val length = request.headers["content-length"]?.toIntOrNull()

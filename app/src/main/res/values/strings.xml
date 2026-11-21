@@ -48,18 +48,7 @@
     <string name="vpn_engine_failed">اتصال VPN راه‌اندازی نشد. اشتراک را تازه کنید و دوباره تلاش کنید.</string>
     <string name="vpn_dropped">اتصال VPN قطع شد و اینترنت معمولی برگشت. برای اتصال دوباره OK را بزنید.</string>
 
-    <string name="vpn_import_drive">دریافت از Google Drive · پوشهٔ VPN</string>
-    <string name="vpn_drive_permission">برای یافتن خودکار پوشهٔ VPN، Google اجازهٔ خواندن فایل‌های Drive را درخواست می‌کند. Amin Player فقط پوشه‌هایی با نام دقیق VPN و فایل‌های داخل آن‌ها را جستجو می‌کند. فایل‌ها خصوصی می‌مانند. حساب درست را انتخاب کنید و درخواست Google را تأیید کنید.</string>
-    <string name="vpn_drive_authorize">انتخاب حساب و دادن اجازه</string>
-    <string name="vpn_drive_authorizing">در انتظار اجازهٔ Google…</string>
-    <string name="vpn_drive_loading">در حال بررسی پوشهٔ VPN در Google Drive…</string>
-    <string name="vpn_drive_choose_folder">کدام پوشهٔ VPN؟</string>
-    <string name="vpn_drive_choose_file">فایل VPN را انتخاب کنید</string>
-    <string name="vpn_drive_auth_failed">اجازهٔ Google Drive دریافت نشد. دوباره دریافت از Drive را بزنید و حساب و اجازه را بررسی کنید.</string>
-    <string name="vpn_drive_setup_failed">Google Drive اجازهٔ دریافت فایل را نداد. ثبت برنامه و فعال‌بودن Drive API باید بررسی شود.</string>
-    <string name="vpn_drive_network_failed">Google Drive در دسترس نیست. اینترنت را بررسی کنید و دوباره تلاش کنید.</string>
-    <string name="vpn_drive_empty">پوشهٔ VPN یا فایل مناسب پیدا نشد. در حساب انتخاب‌شده پوشه‌ای با نام دقیق VPN بسازید و فایل متنی اشتراک یا تنظیمات VLESS را داخل آن بگذارید.</string>
-    <string name="vpn_drive_format_failed">این فایل قابل استفاده نیست. فایل متنی پیوند HTTPS اشتراک FreeSocks، پیوند VLESS یا تنظیمات Xray سازگار را در پوشهٔ VPN بگذارید.</string>
+    <string name="vpn_import_drive">انتخاب فایل از Google Drive با تلفن</string>
     <string name="vpn_permission_ready">اجازهٔ Android آماده است. اکنون فایل خصوصی VPN را از تلفن یا رایانه دریافت کنید و اتصال را بزنید.</string>
     <string name="vpn_local_import">دریافت خصوصی از تلفن یا رایانه</string>
     <string name="vpn_local_guide">آیفون را به همین Wi-Fi وصل کنید. با دوربین آیفون QR را اسکن و روی پیوند بزنید؛ یا نشانی را در مرورگر باز کنید. کد تلویزیون را وارد، فایل را انتخاب و در پایان ذخیره را روی تلویزیون تأیید کنید.</string>
@@ -76,4 +65,5 @@
     <string name="vpn_local_replace">تنظیمات VPN این دستگاه با فایل دریافت‌شده جایگزین شود؟ فایل به‌صورت رمزگذاری‌شده ذخیره می‌شود و VPN خودکار وصل نمی‌شود.</string>
     <string name="vpn_local_save">ذخیره روی این تلویزیون</string>
     <string name="vpn_local_expired">دریافت خصوصی بسته شد. برای دریافت دوباره، بازگردید و آن را دوباره باز کنید.</string>
+    <string name="vpn_drive_guide">۱. تلفن و تلویزیون به یک وای‌فای وصل باشند. ۲. کد QR را اسکن و کد ۸ رقمی را در تلفن وارد کنید. ۳. در تلفن «انتخاب از Google Drive» را بزنید، حساب خودتان را انتخاب کنید و فایل را از هر پوشه‌ای بردارید. ۴. فایل را ارسال کنید و سپس «ذخیره» را با کنترل تلویزیون تأیید کنید.</string>
 </resources>

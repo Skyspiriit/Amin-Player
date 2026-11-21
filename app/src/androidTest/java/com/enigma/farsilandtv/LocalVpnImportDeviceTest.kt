@@ -14,6 +14,24 @@ import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManagerFactory
 
 class LocalVpnImportDeviceTest {
+    @Test fun drivePairingChecksCodeAndOriginWithoutReadingOrReplacingAnyConfiguration() {
+        var uploads = 0
+        val server = LocalVpnImportServer.testing(InetAddress.getByName("127.0.0.1") as Inet4Address,
+            { uploads++; it.fill(0) })
+        try {
+            assertTrue(request(server, "POST", "/pair", "wrong", server.url, "").startsWith("HTTP/1.1 401"))
+            assertTrue(request(server, "POST", "/pair", server.code, "https://unrelated.example", "").startsWith("HTTP/1.1 403"))
+            assertTrue(request(server, "POST", "/pair", server.code, server.url, "unexpected").startsWith("HTTP/1.1 400"))
+            val paired = request(server, "POST", "/pair", server.code, server.url, "")
+            assertTrue(paired.startsWith("HTTP/1.1 200"))
+            assertTrue(paired.contains("expiresIn"))
+            assertFalse(paired.contains(server.code))
+            assertEquals(0, uploads)
+            assertTrue(request(server, "POST", "/import", server.code, server.url, "selected file bytes").startsWith("HTTP/1.1 202"))
+            assertEquals(1, uploads)
+        } finally { server.close() }
+    }
+
     @Test fun tlsUploadRequiresPairingAndSameOriginAndOnlyStagesOneFile() {
         val received = CountDownLatch(1)
         var value: String? = null

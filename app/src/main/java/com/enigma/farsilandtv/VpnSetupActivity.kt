@@ -20,10 +20,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import java.util.concurrent.Executors
-import com.google.android.gms.auth.api.identity.AuthorizationRequest
-import com.google.android.gms.auth.api.identity.Identity
-import com.google.android.gms.common.api.Scope
-import com.google.android.gms.common.api.ApiException
 
 internal fun VpnSession.actionLabel(context: Context): String = context.getString(when (phase) {
     VpnPhase.ON -> R.string.vpn_disconnect
@@ -83,7 +79,14 @@ class VpnSetupActivity : Activity() {
             @Suppress("DEPRECATION")
             startActivityForResult(Intent(this, LocalVpnImportActivity::class.java), LOCAL_IMPORT)
         }
-        importDrive = button(content, R.string.vpn_import_drive) { explainDrive() }
+        importDrive = button(content, R.string.vpn_import_drive) {
+            @Suppress("DEPRECATION")
+            startActivityForResult(Intent(this, LocalVpnImportActivity::class.java)
+                .putExtra(LocalVpnImportActivity.DRIVE_IMPORT, true), LOCAL_IMPORT)
+        }.apply {
+            setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_google_drive, 0, 0, 0)
+            compoundDrawablePadding = dp(12)
+        }
         text(getString(R.string.vpn_setup_guide), 17f)
         field = EditText(this).apply {
             hint = "https://…"
@@ -207,117 +210,12 @@ class VpnSetupActivity : Activity() {
         super.onSaveInstanceState(outState)
     }
 
-    private fun explainDrive() {
-        AlertDialog.Builder(this).setTitle(R.string.vpn_import_drive)
-            .setMessage(R.string.vpn_drive_permission)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.vpn_drive_authorize) { _, _ -> authorizeDrive() }.show()
-    }
-
-    private fun authorizeDrive() {
-        busy = true
-        update()
-        status.setText(R.string.vpn_drive_authorizing)
-        val request = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(DRIVE_SCOPE))).build()
-        Identity.getAuthorizationClient(this).authorize(request)
-            .addOnSuccessListener { result ->
-                if (isDestroyed) return@addOnSuccessListener
-                if (result.hasResolution()) {
-                    val sender = result.pendingIntent?.intentSender
-                    if (sender == null) driveFailed(DriveVpnFailure.AUTHORIZE)
-                    else try {
-                        @Suppress("DEPRECATION")
-                        startIntentSenderForResult(sender, DRIVE_CONSENT, null, 0, 0, 0)
-                    } catch (_: Exception) { driveFailed(DriveVpnFailure.AUTHORIZE) }
-                } else browseDrive(result.accessToken)
-            }.addOnFailureListener { error ->
-                driveFailed(if (error is ApiException && error.statusCode == 10) DriveVpnFailure.SETUP
-                    else DriveVpnFailure.AUTHORIZE)
-            }
-    }
-
-    private fun browseDrive(token: String?) {
-        if (token.isNullOrBlank()) { driveFailed(DriveVpnFailure.AUTHORIZE); return }
-        val client = DriveVpnClient(token)
-        status.setText(R.string.vpn_drive_loading)
-        driveWork {
-            val folders = client.folders()
-            if (folders.isEmpty()) throw DriveVpnProblem(DriveVpnFailure.EMPTY)
-            val labels = if (folders.size > 1) folders.map {
-                "VPN · ${client.parentName(it)} · ${it.modified.take(10)} · ${it.id.takeLast(4)}"
-            } else listOf("VPN")
-            runOnUiThread {
-                if (!isDestroyed) {
-                    if (folders.size == 1) browseFiles(client, folders.single())
-                    else AlertDialog.Builder(this).setTitle(R.string.vpn_drive_choose_folder)
-                        .setItems(labels.toTypedArray()) { _, which -> browseFiles(client, folders[which]) }
-                        .setOnCancelListener { busy = false; update() }.show()
-                }
-            }
-        }
-    }
-
-    private fun browseFiles(client: DriveVpnClient, folder: DriveVpnFile) {
-        driveWork {
-            val files = client.files(folder)
-            if (files.isEmpty()) throw DriveVpnProblem(DriveVpnFailure.EMPTY)
-            runOnUiThread {
-                if (!isDestroyed) {
-                    if (files.size == 1) readDrive(client, folder, files.single())
-                    else AlertDialog.Builder(this).setTitle(R.string.vpn_drive_choose_file)
-                        .setItems(files.map { it.name }.toTypedArray()) { _, which ->
-                            readDrive(client, folder, files[which])
-                        }.setOnCancelListener { busy = false; update() }.show()
-                }
-            }
-        }
-    }
-
-    private fun readDrive(client: DriveVpnClient, folder: DriveVpnFile, file: DriveVpnFile) {
-        driveWork {
-            val value = client.read(folder, file)
-            secrets.save(value)
-            runOnUiThread {
-                busy = false
-                if (!isDestroyed) { VpnStatus.stop(); update(); connect.requestFocus() }
-            }
-        }
-    }
-
-    private fun driveWork(action: () -> Unit) {
-        worker.execute {
-            try { action() }
-            catch (e: DriveVpnProblem) { runOnUiThread { driveFailed(e.reason) } }
-            catch (_: Exception) { runOnUiThread { driveFailed(DriveVpnFailure.FORMAT) } }
-        }
-    }
-
-    private fun driveFailed(reason: DriveVpnFailure) {
-        busy = false
-        if (isDestroyed) return
-        update()
-        status.setText(when (reason) {
-            DriveVpnFailure.AUTHORIZE -> R.string.vpn_drive_auth_failed
-            DriveVpnFailure.SETUP -> R.string.vpn_drive_setup_failed
-            DriveVpnFailure.NETWORK -> R.string.vpn_drive_network_failed
-            DriveVpnFailure.EMPTY -> R.string.vpn_drive_empty
-            DriveVpnFailure.FORMAT -> R.string.vpn_drive_format_failed
-        })
-    }
-
     @Deprecated("Activity callback remains supported on Android TV 11")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == LOCAL_IMPORT) {
             update()
             if (resultCode == RESULT_OK) connect.requestFocus() else importLocal.requestFocus()
-        } else if (requestCode == DRIVE_CONSENT) {
-            if (resultCode != RESULT_OK || data == null) driveFailed(DriveVpnFailure.AUTHORIZE)
-            else {
-                val result = runCatching { Identity.getAuthorizationClient(this)
-                    .getAuthorizationResultFromIntent(data) }.getOrNull()
-                browseDrive(result?.accessToken)
-            }
         } else if (requestCode == VPN_CONSENT) {
             if (resultCode == RESULT_OK) completeVpnConsent()
             else status.setText(R.string.vpn_consent_needed)
@@ -332,8 +230,6 @@ class VpnSetupActivity : Activity() {
     companion object {
         const val CONNECT_REQUEST = "connect-vpn"
         private const val VPN_CONSENT = 801
-        private const val DRIVE_CONSENT = 803
         private const val LOCAL_IMPORT = 804
-        private const val DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly"
     }
 }
