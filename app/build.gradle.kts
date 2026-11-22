@@ -15,10 +15,12 @@ android {
         applicationId = "com.enigma.farsilandtv"
         minSdk = 23
         targetSdk = 35
-        versionCode = 34
-        versionName = "1.33"
+        versionCode = 35
+        versionName = "1.34"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Optional device test build; normal builds still contain every supported ABI.
+        // Review builds only (-PaminScreenshots=true): lets the VPN screens be captured. Releases keep them private.
+        resValue("bool", "amin_allow_screenshots", (providers.gradleProperty("aminScreenshots").orNull == "true").toString())
         providers.gradleProperty("aminTargetAbi").orNull?.let { abi ->
             require(abi in setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
             ndk { abiFilters += abi }

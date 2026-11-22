@@ -1170,6 +1170,12 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
         }
         // Only an episode link saved by the picker or the episode's All Episodes action opens the list on return.
         var returning = keyToRestore.indexOf('link:') === 0 ? findEpisode(keyToRestore.slice(5)) : -1;
+        // From the player's All Episodes button: open the list at the episode that was playing.
+        var fromPlayer = /^#fl-episodes=(.+)$/.exec(location.hash);
+        if (fromPlayer) {
+            try { returning = findEpisode(decodeURIComponent(fromPlayer[1])); } catch (_) {}
+            history.replaceState(null, '', location.pathname + location.search);
+        }
         var currentIndex = returning >= 0 ? returning : findEpisode(currentEpisode);
         var previous = ordered[currentIndex - 1];
 
@@ -1765,6 +1771,7 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
                 openPlayer: config.openPlayer === true,
                 next: config.next,
                 previous: config.previous,
+                allEpisodes: config.allEpisodes === true,
                 nextSeason: config.nextSeason === true,
                 autoPlay: config.startVideo === true,
                 playing: !config.resume || config.resume.playing !== false,
@@ -2044,6 +2051,7 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
         if (playUi.play.textContent !== label) playUi.play.textContent = label;
         playUi.next.hidden = !(playback && playback.next);
         playUi.previous.hidden = !(playback && playback.previous);
+        if (playUi.episodes) playUi.episodes.hidden = !(playback && playback.allEpisodes);
         var resolution = playback && playback.quality;
         if (playUi.quality) {
             playUi.quality.hidden = !resolution || playback.qualities.length < 2;
@@ -2096,13 +2104,21 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
         // Series only: skip to the previous or next episode (Android knows both URLs).
         var nextEpisode = button('قسمت بعدی ▶', function () { skipEpisode('next'); });
         var previousEpisode = button('◀ قسمت قبلی', function () { skipEpisode('previous'); });
+        // 1.34: leave the player for this series' episode list, opened at the episode playing now.
+        var episodeList = button('☰ همه قسمت‌ها', function () {
+            if (!playback || !playback.allEpisodes) return;
+            dismissNextEpisode();
+            reportProgress(true);
+            postPlayback({event: 'all-episodes'});
+        });
         nextEpisode.id = 'fl-skip-next';
         previousEpisode.id = 'fl-skip-previous';
-        [nextEpisode, previousEpisode].forEach(function (skip) {
+        episodeList.id = 'fl-all-episodes';
+        [nextEpisode, previousEpisode, episodeList].forEach(function (skip) {
             skip.classList.add('fl-skip');
             skip.hidden = true;
         });
-        [nextEpisode, play, previousEpisode, full, quality].forEach(function (element) {
+        [nextEpisode, play, episodeList, previousEpisode, full, quality].forEach(function (element) {
             controls.appendChild(element);
         });
         var scrubRow = make('div', '', 'fl-scrub');
@@ -2125,7 +2141,7 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
         bar.appendChild(controls);
         root.appendChild(bar);
         playUi = { root: root, bar: bar, status: status, play: play, full: full, quality: quality, time: time, timeline: timeline, preview: null,
-            next: nextEpisode, previous: previousEpisode };
+            next: nextEpisode, previous: previousEpisode, episodes: episodeList };
         hidePlayerLoading();
         if (!overlay() && (!current || current.closest('.fl-toolbar') || !visible(current))) select(play);
         updatePlayUi();

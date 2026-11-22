@@ -79,12 +79,25 @@ class MainActivity : Activity() {
     private val loadWindow = PageLoadWindow()
     private var prepareRetry: Runnable? = null
     private var intro: IntroView? = null
+    private lateinit var loadingScreen: LoadingView
+    private val showLoadingScreen = Runnable {
+        if (!ready && !failed && intro == null && !isFinishing && resumed) {
+            loadingScreen.show(currentTheme(), getString(if (slowShown) R.string.loading_slow_short else R.string.loading_page))
+        }
+    }
+    private var slowShown = false
     private var introSound: SoundPool? = null
     private var introSoundId = 0
     private var introSoundReady = false
     private val slowLoading = Runnable {
-        if (!ready && !failed && !isFinishing) message.setText(R.string.loading_slow)
+        if (!ready && !failed && !isFinishing) {
+            message.setText(R.string.loading_slow)
+            slowShown = true
+            loadingScreen.message = getString(R.string.loading_slow_short)
+        }
     }
+
+    private fun currentTheme() = AppThemes.forSaved(playbackSettings.getString("theme", null))
     private val timeout = Runnable {
         if (!ready && !failed && !isFinishing && loadWindow.expired(SystemClock.elapsedRealtime())) {
             showError()
@@ -166,17 +179,23 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             setPadding(dp(40), dp(24), dp(40), dp(24))
-            setBackgroundColor(IntroView.CHARCOAL)
+            setBackgroundColor(AppThemes.palette(currentTheme()).bg)
             isClickable = true
             isFocusableInTouchMode = true
         }
         message = TextView(this).apply {
             textSize = 24f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(AppThemes.palette(currentTheme()).text)
         }
         status.addView(message, LinearLayout.LayoutParams(-1, -2))
-        val actions = LinearLayout(this).apply { gravity = Gravity.CENTER }
+        val actions = LinearLayout(this).apply {
+            gravity = Gravity.CENTER
+            // Room under the rounded buttons so their bottom edge and focus ring are never cut off.
+            setPadding(0, dp(4), 0, dp(20))
+            clipChildren = false
+            clipToPadding = false
+        }
         retry = statusButton(R.string.retry) {
             val url = activeUrl
             if (rendererGone) {
@@ -208,22 +227,30 @@ class MainActivity : Activity() {
         }
         status.addView(actions)
         root.addView(status, FrameLayout.LayoutParams(-1, -1))
+        // Branded loading screen (1.34), drawn above the page on its own thread.
+        loadingScreen = LoadingView(this, BitmapFactory.decodeResource(resources, R.drawable.intro_mark))
+        root.addView(loadingScreen, FrameLayout.LayoutParams(-1, -1))
     }
 
     private fun statusButton(label: Int, action: () -> Unit): Button = Button(this).apply {
         setText(label)
+        // Theme colours, like the VPN screen: a raised button that turns gold (or the theme's colour) when focused.
+        val tone = AppThemes.palette(currentTheme())
         textSize = 19f
-        setTextColor(Color.WHITE)
-        minHeight = dp(54)
-        setPadding(dp(20), 0, dp(20), 0)
-        fun shape(fill: Int, stroke: Int) = GradientDrawable().apply {
-            cornerRadius = dp(12).toFloat()
-            setColor(fill)
-            setStroke(dp(3), stroke)
+        isAllCaps = false
+        stateListAnimator = null
+        minHeight = dp(56)
+        setPadding(dp(24), dp(6), dp(24), dp(6))
+        setTextColor(android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
+            intArrayOf(tone.onFocus, tone.text)))
+        fun shape(top: Int, bottom: Int, stroke: Int) = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(top, bottom)).apply {
+            cornerRadius = dp(28).toFloat()
+            setStroke(dp(2), stroke)
         }
         background = StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_focused), shape(0xff334159.toInt(), 0xffffe180.toInt()))
-            addState(intArrayOf(), shape(0xff23324a.toInt(), 0xff415570.toInt()))
+            addState(intArrayOf(android.R.attr.state_focused), shape(tone.focus, tone.accent, Color.WHITE))
+            addState(intArrayOf(), shape(tone.raisedHi, tone.raised, tone.raisedHi))
         }
         setOnClickListener { action() }
     }
@@ -298,6 +325,7 @@ class MainActivity : Activity() {
             config.put("player", true).put("next", item?.next?.title?.ifBlank { "قسمت بعدی" })
                 .put("nextSeason", item?.next?.startsSeason == true)
                 .put("previous", previousEpisode?.takeIf { it.first == item?.url }?.second?.title?.ifBlank { "قسمت قبلی" })
+                .put("allEpisodes", item?.series?.url?.let(::isSeriesPage) == true && item.url.contains("/episodes/"))
                 .put("startVideo", item != null && resumed)
                 .put("qualities", JSONArray(availableQualities))
                 .put("preferredQuality", preferredQuality)
@@ -460,6 +488,12 @@ class MainActivity : Activity() {
                 startPlayback(WatchProgress(target.asWatchItem(item.poster, item.series), 0, 0, quality),
                     fullscreen = true)
             }
+            // 1.34: the player's All Episodes button opens the series list at this episode (progress already saved).
+            "all-episodes" -> if (resumed && hasWindowFocus()) {
+                val series = item.series?.url?.takeIf(::isSeriesPage) ?: return
+                hideFullscreen()
+                load(series.substringBefore('#') + "#fl-episodes=" + Uri.encode(item.url))
+            }
             "next" -> if (resumed && hasWindowFocus() && finishedEpisode) {
                 val next = item.next ?: return
                 finishedEpisode = false
@@ -533,6 +567,10 @@ class MainActivity : Activity() {
         prepareRetry?.let(handler::removeCallbacks)
         prepareRetry = null
         message.setText(R.string.loading)
+        message.visibility = View.INVISIBLE
+        slowShown = false
+        handler.removeCallbacks(showLoadingScreen)
+        handler.postDelayed(showLoadingScreen, LOADING_DELAY)
         retry.visibility = View.GONE
         home.visibility = View.GONE
         status.visibility = View.VISIBLE
@@ -549,7 +587,10 @@ class MainActivity : Activity() {
         prepareRetry?.let(handler::removeCallbacks)
         prepareRetry = null
         loadWindow.finish()
+        handler.removeCallbacks(showLoadingScreen)
+        loadingScreen.hide(immediate = true)
         status.visibility = View.VISIBLE
+        message.visibility = View.VISIBLE
         message.setText(text)
         retry.visibility = View.VISIBLE
         home.visibility = View.VISIBLE
@@ -584,6 +625,8 @@ class MainActivity : Activity() {
             prepareRetry = null
             loadWindow.finish()
             status.visibility = View.GONE
+            handler.removeCallbacks(showLoadingScreen)
+            loadingScreen.hide()
             web.requestFocus()
             if (intro?.holding == true) endIntro()
             runPage("refresh(true)")
@@ -864,6 +907,8 @@ class MainActivity : Activity() {
         resumed = false
         introSound?.autoPause()
         endIntro(immediate = true)
+        handler.removeCallbacks(showLoadingScreen)
+        loadingScreen.hide(immediate = true)
         VpnStatus.remove(vpnObserver)
         playbackLaunch = null
         if (!rendererGone) {
@@ -947,6 +992,8 @@ class MainActivity : Activity() {
         private const val INTRO_SOUND = "intro_sound"
         // Comfortably below full scale so the impact sits near ordinary programme loudness.
         private const val INTRO_VOLUME = 0.7f
+        // Only loads slower than this get the loading screen, so quick page changes never flash.
+        private const val LOADING_DELAY = 350L
         private const val HOME = "https://farsiland.com/home"
 
         private val SELECT_KEYS = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BUTTON_A,

@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">Amin player</string>
     <string name="loading">در حال بارگذاری…</string>
+    <string name="loading_page">در حال آماده‌سازی…</string>
+    <string name="loading_slow_short">اینترنت کند است؛ لطفاً کمی صبر کنید…</string>
     <string name="loading_slow">اینترنت کند است؛ هنوز در حال بارگذاری هستیم. لطفاً تا دو دقیقه صبر کنید.</string>
     <string name="load_error">صفحه باز نشد. اتصال اینترنت را بررسی کنید و دوباره امتحان کنید.</string>
     <string name="retry">تلاش دوباره</string>
@@ -37,7 +39,7 @@
     <string name="vpn_forget">حذف اشتراک از این دستگاه</string>
     <string name="vpn_back">بازگشت به صفحهٔ خانه</string>
     <string name="vpn_continue">ادامه به تأیید Android</string>
-    <string name="vpn_consent_explanation">Android ممکن است اجازهٔ اتصال VPN بخواهد. برای اتصال، درخواست سیستم را با OK تأیید کنید. این اتصال اینترنت همهٔ برنامه‌ها، از جمله یوتیوب، را از FreeSocks می‌گذراند. Android فقط یک VPN فعال دارد؛ اتصال جدید جای VPN فعلی را می‌گیرد. اتصال تنها با انتخاب شما شروع می‌شود و از صفحهٔ خانه قابل قطع است.</string>
+    <string name="vpn_consent_explanation">Android ممکن است اجازهٔ اتصال VPN بخواهد. برای اتصال، درخواست سیستم را با OK تأیید کنید. این اتصال اینترنت همهٔ برنامه‌ها، از جمله یوتیوب، را از VPN می‌گذراند. Android فقط یک VPN فعال دارد؛ اتصال جدید جای VPN فعلی را می‌گیرد. اتصال تنها با انتخاب شما شروع می‌شود و از صفحهٔ خانه قابل قطع است.</string>
     <string name="vpn_consent_needed">اجازهٔ VPN داده نشد یا لغو شد. دوباره اتصال را بزنید و درخواست Android را تأیید کنید.</string>
     <string name="vpn_invalid_url">پیوند معتبر HTTPS اشتراک را از FreeSocks بگیرید و دوباره وارد کنید.</string>
     <string name="vpn_save_failed">ذخیرهٔ امن ممکن نشد. برنامه را دوباره باز کنید و پیوند را وارد کنید.</string>
@@ -66,4 +68,23 @@
     <string name="vpn_local_save">ذخیره روی این تلویزیون</string>
     <string name="vpn_local_expired">دریافت خصوصی بسته شد. برای دریافت دوباره، بازگردید و آن را دوباره باز کنید.</string>
     <string name="vpn_drive_guide">۱. تلفن و تلویزیون به یک وای‌فای وصل باشند. ۲. کد QR را اسکن و کد ۸ رقمی را در تلفن وارد کنید. ۳. در تلفن «انتخاب از Google Drive» را بزنید، حساب خودتان را انتخاب کنید و فایل را از هر پوشه‌ای بردارید. ۴. فایل را ارسال کنید و سپس «ذخیره» را با کنترل تلویزیون تأیید کنید.</string>
+    <!-- 1.34 VPN screen -->
+    <string name="vpn_title">VPN</string>
+    <string name="vpn_state_off">خاموش</string>
+    <string name="vpn_state_connecting">در حال اتصال</string>
+    <string name="vpn_state_on">وصل</string>
+    <string name="vpn_state_stopping">در حال قطع</string>
+    <string name="vpn_state_error">وصل نشد</string>
+    <string name="vpn_source_personal">منبع: اشتراک شخصی شما</string>
+    <string name="vpn_source_none">هنوز VPN تنظیم نشده است</string>
+    <string name="vpn_add_title">افزودن یا تغییر VPN</string>
+    <string name="vpn_freesocks_title">کلید رایگان FreeSocks</string>
+    <string name="vpn_freesocks_sub">با تلفن کلید بگیرید و از راه «دریافت از تلفن» بفرستید</string>
+    <string name="vpn_freesocks_steps">۱. این QR را با دوربین تلفن اسکن کنید تا freesocks.org باز شود.
+۲. کلید یا پیوند اشتراک رایگان بگیرید (محدودیت مصرف ماهانه دارد).
+۳. آن را در یک فایل متنی ذخیره کنید و با «دریافت خصوصی از تلفن یا رایانه» یا Google Drive بفرستید.</string>
+    <string name="vpn_drive_sub">فایل را از هر پوشهٔ Google Drive انتخاب کنید</string>
+    <string name="vpn_local_sub">فایلی که روی تلفن یا رایانه دارید</string>
+    <string name="vpn_link_title">یا پیوند اشتراک HTTPS را اینجا وارد کنید</string>
+    <string name="vpn_close">بستن</string>
 </resources>
