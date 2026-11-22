@@ -10,6 +10,7 @@ import android.provider.Settings
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.StateListDrawable
 import android.net.Uri
+import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -69,6 +70,7 @@ class MainActivity : Activity() {
     private var quality: Int? = null
     private var finishedEpisode = false
     @Volatile private var resumed = false
+    private var vpnConsentShown = false
     private var generation = 0
     private var ready = false
     private var failed = false
@@ -125,6 +127,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Review builds only (-PaminScreenshots=true): lets the test scripts read the page. Releases keep it off.
+        if (resources.getBoolean(R.bool.amin_allow_screenshots)) WebView.setWebContentsDebuggingEnabled(true)
         // Quality is chosen per viewing (see connectPlayback); drop the old saved preference.
         playbackSettings.edit().remove("preferred_quality").apply()
         root = FrameLayout(this).apply { setBackgroundColor(IntroView.CHARCOAL) }
@@ -219,7 +223,7 @@ class MainActivity : Activity() {
             }
         }
         home = statusButton(R.string.home, ::openHome)
-        fallbackVpn = statusButton(R.string.vpn_connect, ::openVpn)
+        fallbackVpn = statusButton(R.string.vpn_connect, ::vpnPower)
         for (button in listOf(retry, home, fallbackVpn)) {
             actions.addView(button, LinearLayout.LayoutParams(-2, -2).apply {
                 setMargins(dp(8), dp(20), dp(8), 0)
@@ -255,9 +259,53 @@ class MainActivity : Activity() {
         setOnClickListener { action() }
     }
 
-    private fun openVpn() {
-        startActivity(Intent(this, VpnSetupActivity::class.java)
-            .putExtra(VpnSetupActivity.CONNECT_REQUEST, true))
+    /** VPN settings (1.35): configuration only; opening it never connects or disconnects. */
+    private fun openVpnSettings() {
+        startActivity(Intent(this, VpnSetupActivity::class.java))
+    }
+
+    /**
+     * The home screen's VPN power button (1.35): connects when off, cancels while connecting, disconnects when on,
+     * and ignores presses while stopping. Connecting tries every enabled profile on this device in order.
+     */
+    private fun vpnPower() {
+        when (VpnStatus.current.phase) {
+            VpnPhase.ON, VpnPhase.CONNECTING -> AminVpnService.disconnect(this)
+            VpnPhase.STOPPING -> Unit
+            VpnPhase.OFF, VpnPhase.ERROR -> startVpn()
+        }
+    }
+
+    private fun startVpn() {
+        val plan = runCatching {
+            VpnPlan.order(VpnProfileStore(this).list(), { VpnPlan.supported(it, Build.VERSION.SDK_INT) })
+        }.getOrDefault(emptyList())
+        if (plan.isEmpty()) { VpnStatus.failNow(VpnFailure.SETUP); return }
+        // Android's own consent is needed only for our tunnel (V2Ray/Xray); Kerio's was given when it was saved.
+        val consent = if (plan.any { it.kind == VpnKind.XRAY }) VpnService.prepare(this) else null
+        if (consent == null) { AminVpnService.connect(this); return }
+        if (vpnConsentShown) return
+        vpnConsentShown = true
+        android.app.AlertDialog.Builder(this).setTitle(R.string.vpn_connect)
+            .setMessage(R.string.vpn_consent_explanation)
+            .setNegativeButton(android.R.string.cancel) { _, _ -> vpnConsentShown = false }
+            .setOnCancelListener { vpnConsentShown = false }
+            .setPositiveButton(R.string.vpn_continue) { _, _ ->
+                @Suppress("DEPRECATION")
+                runCatching { startActivityForResult(consent, VPN_CONSENT) }
+                    .onFailure { vpnConsentShown = false; VpnStatus.failNow(VpnFailure.CONSENT) }
+            }.show()
+    }
+
+    @Deprecated("Activity callback remains supported on Android TV 11")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != VPN_CONSENT) return
+        vpnConsentShown = false
+        val kerio = runCatching { VpnProfileStore(this).list().any { it.enabled && it.kind == VpnKind.IKEV2 } }.getOrDefault(false)
+        // Without consent, only Kerio profiles can still be tried; the V2Ray ones then report the missing consent.
+        if (resultCode == RESULT_OK || (kerio && PlatformVpn.supported)) AminVpnService.connect(this)
+        else VpnStatus.failNow(VpnFailure.CONSENT)
     }
 
     private fun load(url: String) {
@@ -374,9 +422,8 @@ class MainActivity : Activity() {
         }
         if (isHome(page)) {
             when (event) {
-                "vpn" -> if (resumed) {
-                    openVpn()
-                }
+                "vpn" -> if (resumed) openVpnSettings()
+                "vpn-power" -> if (resumed) vpnPower()
                 "resume" -> if (resumed) {
                     watchHistory.find(watchUrl(message.optString("url")).orEmpty())
                         ?.takeUnless(WatchProgress::finished)?.let { startPlayback(it) }
@@ -470,6 +517,12 @@ class MainActivity : Activity() {
                 val position = message.optInt("position", -1)
                 if (duration !in 1..PlaybackHistory.MAX_DURATION || position !in 0..duration) return
                 watchHistory.remember(WatchProgress(item, position, duration, quality))
+                // A real episode played over the VPN: the strongest check there is.
+                if (position > 0 && VpnStatus.current.phase == VpnPhase.ON && VpnStatus.playback()) {
+                    VpnStatus.current.profileId?.let { id ->
+                        Thread { runCatching { VpnProfileStore(applicationContext).recordPlayback(id) } }.start()
+                    }
+                }
                 playbackLaunch = null
                 web.settings.mediaPlaybackRequiresUserGesture = true
             }
@@ -931,11 +984,17 @@ class MainActivity : Activity() {
         advanceUpdater()
     }
 
-    private fun vpnState(): JSONObject = JSONObject()
-        .put("label", VpnStatus.current.actionLabel(this))
-        .put("status", VpnStatus.current.statusLabel(this))
-        .put("stopping", VpnStatus.current.phase == VpnPhase.STOPPING)
-        .put("phase", VpnStatus.current.phase.name)
+    private fun vpnState(): JSONObject {
+        val session = VpnStatus.current
+        return JSONObject()
+            .put("label", session.actionLabel(this))
+            .put("power", session.powerLabel(this))
+            .put("status", session.statusLabel(this))
+            .put("stopping", session.phase == VpnPhase.STOPPING)
+            .put("phase", session.phase.name)
+            .put("attempt", session.attempt)
+            .put("error", if (session.phase == VpnPhase.ERROR) session.failure?.message(this).orEmpty() else "")
+    }
 
     private fun sendVpnState() {
         if (::fallbackVpn.isInitialized) fallbackVpn.text = VpnStatus.current.actionLabel(this)
@@ -988,6 +1047,7 @@ class MainActivity : Activity() {
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
 
     companion object {
+        private const val VPN_CONSENT = 811
         private const val INTRO_ANIMATION = "intro_animation"
         private const val INTRO_SOUND = "intro_sound"
         // Comfortably below full scale so the impact sits near ordinary programme loudness.

@@ -39,7 +39,7 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
     var highlight = null;
     var activeFrame = null;
     var toolbar;
-    var vpnHome;
+    var vpnPower, vpnSettings, vpnNotice, vpnNoticeTimer, vpnShownAttempt = -1;
     var searchDialog;
     var favoritesView;
     var detail;
@@ -116,6 +116,8 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
         episodes: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M8 9.5h8M8 14.5h5"/>',
         previous: '<path d="M6 5.5v13"/><path class="f" d="M18.8 11.2 10.6 5.8c-.6-.4-1.4 0-1.4.8v10.8c0 .8.8 1.2 1.4.8l8.2-5.4c.6-.4.6-1.2 0-1.6z"/>',
         settings: '<circle cx="12" cy="12" r="3.1"/><path d="M12 3.2v2.6M12 18.2v2.6M3.2 12h2.6M18.2 12h2.6M5.8 5.8l1.8 1.8M16.4 16.4l1.8 1.8M5.8 18.2l1.8-1.8M16.4 7.6l1.8-1.8"/><circle cx="12" cy="12" r="6.6"/>',
+        power: '<path d="M12 3.6v7.6"/><path d="M7.1 6.6a7.6 7.6 0 1 0 9.8 0"/>',
+        vpnSettings: '<path d="M12 3.2 4.8 6v5.6c0 4.4 3 8 7.2 9.2 4.2-1.2 7.2-4.8 7.2-9.2V6z"/><circle cx="12" cy="11.6" r="2.2"/><path d="M12 7.4v1.6M12 14.2v1.6M8.1 11.6h1.6M14.3 11.6h1.6"/>',
         film: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9h17M3.5 15h17M8 5v4M16 5v4M8 15v4M16 15v4"/>'
     };
 
@@ -379,30 +381,59 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
         var action = !playerSite && siteForm && knownUrl(siteForm.action) ? siteForm.action : catalogue + '/';
         toolbar.appendChild(buildSearch(action));
         if (isHome) toolbar.appendChild(buildThemePicker());
-        if (isHome) {
-            // VPN lives in the menu (1.32); its state shows as a word and a coloured dot.
-            vpnHome = withIcon(button('', function () { postPlayback({event: 'vpn'}); }), 'shield', 'VPN');
-            vpnHome.id = 'fl-vpn-action';
-            vpnHome.classList.add('fl-vpn-button');
-            vpnHome.dataset.flVpn = 'off';
-            var state = make('span', 'خاموش', 'fl-vpn-state');
-            state.setAttribute('aria-live', 'polite');
-            vpnHome.appendChild(state);
-            toolbar.appendChild(vpnHome);
-        }
         if (isHome && versionName) toolbar.appendChild(make('span', 'v' + versionName, 'fl-app-version'));
+        if (isHome) {
+            // 1.35: two separate VPN buttons at the top-left. Power only connects/disconnects;
+            // settings only opens the VPN settings screen.
+            var group = make('div', '', 'fl-vpn-group');
+            group.setAttribute('role', 'group');
+            group.setAttribute('aria-label', 'VPN');
+            vpnPower = withIcon(button('', function () {
+                if (vpnPower.dataset.flVpn === 'stopping') return;
+                postPlayback({event: 'vpn-power'});
+            }), 'power', 'VPN قطع');
+            vpnPower.id = 'fl-vpn-power';
+            vpnPower.classList.add('fl-vpn-power');
+            vpnPower.dataset.flVpn = 'off';
+            vpnPower.setAttribute('aria-label', 'VPN قطع، برای اتصال OK را بزنید');
+            vpnSettings = withIcon(button('', function () { postPlayback({event: 'vpn'}); }), 'vpnSettings', 'تنظیمات VPN');
+            vpnSettings.id = 'fl-vpn-settings';
+            vpnSettings.classList.add('fl-vpn-settings');
+            group.appendChild(vpnPower);
+            group.appendChild(vpnSettings);
+            toolbar.appendChild(group);
+            toolbar.setAttribute('data-fl-vpn-menu', '');
+            vpnNotice = make('div', '', 'fl-vpn-notice');
+            vpnNotice.setAttribute('role', 'status');
+            vpnNotice.setAttribute('aria-live', 'polite');
+            vpnNotice.hidden = true;
+            document.body.appendChild(vpnNotice);
+        }
         document.body.insertBefore(toolbar, document.body.firstChild);
         document.documentElement.setAttribute('data-fl-toolbar', '');
     }
 
     function updateVpn(state) {
-        if (!vpnHome || !state || typeof state.label !== 'string' || typeof state.status !== 'string') return;
+        if (!vpnPower || !state || typeof state.label !== 'string' || typeof state.status !== 'string') return;
         var phase = typeof state.phase === 'string' ? state.phase : (state.stopping ? 'STOPPING' : 'OFF');
-        var words = {ON: 'وصل', CONNECTING: 'در حال اتصال', STOPPING: 'در حال قطع', ERROR: 'خطا'};
-        q('.fl-vpn-state', vpnHome).textContent = words[phase] || 'خاموش';
-        vpnHome.dataset.flVpn = phase.toLowerCase();
-        vpnHome.setAttribute('aria-label', state.label + '، ' + state.status);
-        vpnHome.setAttribute('aria-disabled', state.stopping ? 'true' : 'false');
+        var words = {ON: 'VPN وصل', CONNECTING: 'در حال اتصال', STOPPING: 'در حال قطع'};
+        var word = typeof state.power === 'string' && state.power ? state.power : (words[phase] || 'VPN قطع');
+        setLabel(vpnPower, word);
+        // Red when off or failed, amber while connecting or stopping, green when connected.
+        vpnPower.dataset.flVpn = phase === 'ERROR' ? 'off' : phase.toLowerCase();
+        vpnPower.setAttribute('aria-label', word + '، ' + state.status);
+        vpnPower.setAttribute('aria-disabled', state.stopping ? 'true' : 'false');
+        if (!vpnNotice) return;
+        // A short Persian error under the buttons, once per failed attempt, for a few seconds.
+        if (phase === 'ERROR' && state.error && state.attempt !== vpnShownAttempt) {
+            vpnShownAttempt = state.attempt;
+            vpnNotice.textContent = state.error;
+            vpnNotice.hidden = false;
+            clearTimeout(vpnNoticeTimer);
+            vpnNoticeTimer = setTimeout(function () { vpnNotice.hidden = true; }, 9000);
+        } else if (phase !== 'ERROR') {
+            vpnNotice.hidden = true;
+        }
     }
 
     function visible(element) {

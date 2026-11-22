@@ -1034,7 +1034,9 @@ html[data-fl-tv] .fl-toolbar .fl-button[aria-current="page"]:not([data-fl-focus]
 html[data-fl-tv] .fl-toolbar .fl-search-trigger {
     flex: 1 1 auto;
     width: auto;
+    min-width: 0;
     max-width: 330px;
+    overflow: hidden;
     justify-content: flex-start;
     gap: 10px;
     border-radius: 23px;
@@ -1042,32 +1044,59 @@ html[data-fl-tv] .fl-toolbar .fl-search-trigger {
 html[data-fl-tv] .fl-toolbar .fl-search-trigger:not([data-fl-focus]) .fl-label { color: var(--fl-muted); }
 .fl-app-version { margin-inline-start: auto; font-size: 14px; opacity: .75; }
 
-/* VPN in the menu: icon, "VPN" and its state with a coloured dot. */
-.fl-vpn-state {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 1px 10px 1px 9px;
-    border-radius: 12px;
-    background: #00000038;
-    font-size: .78em;
-    font-weight: 600;
+/* VPN (1.35): a power button and a settings button side by side at the top-left. The power button keeps
+   its meaning in every theme: red off, amber connecting/stopping, green connected; text and icon always say it too. */
+.fl-vpn-group { display: flex; flex: none; align-items: center; gap: 10px; margin-inline-start: auto; }
+html[data-fl-tv] .fl-toolbar .fl-vpn-group .fl-button { padding: 6px 14px; }
+/* With the two VPN buttons on the home menu, keep everything on one line: tighter spacing, and the search pill
+   gives way first but keeps its word. */
+html[data-fl-tv] .fl-toolbar[data-fl-vpn-menu] { gap: 8px; padding-inline: clamp(18px, 3vw, 40px); }
+html[data-fl-tv] .fl-toolbar[data-fl-vpn-menu] .fl-button { padding-inline: 14px; }
+html[data-fl-tv] .fl-toolbar[data-fl-vpn-menu] .fl-search-trigger { min-width: 132px; }
+html[data-fl-tv] .fl-toolbar .fl-search-trigger .fl-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-fl-tv] .fl-toolbar .fl-vpn-power,
+html[data-fl-tv] .fl-toolbar .fl-vpn-power[data-fl-focus] {
+    --fl-vpn-a: #e0503f;
+    --fl-vpn-b: #a52a1f;
+    --fl-vpn-glow: #ff6a5c;
+    min-width: 132px;
+    justify-content: center;
+    background: linear-gradient(180deg, var(--fl-vpn-a), var(--fl-vpn-b)) !important;
+    border-color: transparent !important;
+    color: #fff !important;
+    font-weight: 700;
 }
-.fl-vpn-state::before {
-    content: "";
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: #8d929b;
+html[data-fl-tv] .fl-toolbar .fl-vpn-power[data-fl-vpn="connecting"],
+html[data-fl-tv] .fl-toolbar .fl-vpn-power[data-fl-vpn="stopping"] {
+    --fl-vpn-a: #f6c052; --fl-vpn-b: #c98b16; --fl-vpn-glow: #f2b544;
+    color: #2a1a00 !important;
 }
-.fl-vpn-button .fl-shield-tick { opacity: 0; }
-.fl-vpn-button[data-fl-vpn="on"] .fl-shield-tick { opacity: 1; }
-.fl-vpn-button[data-fl-vpn="on"]:not([data-fl-focus]) .fl-icon { color: #4fe08f; }
-.fl-vpn-button[data-fl-vpn="on"] .fl-vpn-state::before { background: #39d483; box-shadow: 0 0 8px #39d483; }
-.fl-vpn-button[data-fl-vpn="on"]:not([data-fl-focus]) .fl-vpn-state { color: #8df0b4; }
-.fl-vpn-button[data-fl-vpn="connecting"] .fl-vpn-state::before,
-.fl-vpn-button[data-fl-vpn="stopping"] .fl-vpn-state::before { background: #f2b544; animation: fl-pulse 1.2s ease-in-out infinite; }
-.fl-vpn-button[data-fl-vpn="error"] .fl-vpn-state::before { background: #ff7a6b; }
+html[data-fl-tv] .fl-toolbar .fl-vpn-power[data-fl-vpn="on"] {
+    --fl-vpn-a: #36c879; --fl-vpn-b: #1c8a4f; --fl-vpn-glow: #39d483;
+}
+html[data-fl-tv] .fl-toolbar .fl-vpn-power[data-fl-focus] {
+    box-shadow: 0 0 0 3px #fff, 0 0 22px var(--fl-vpn-glow) !important;
+    transform: scale(1.06);
+}
+html[data-fl-tv] .fl-toolbar .fl-vpn-power[data-fl-vpn="connecting"] .fl-icon,
+html[data-fl-tv] .fl-toolbar .fl-vpn-power[data-fl-vpn="stopping"] .fl-icon { animation: fl-pulse 1.1s ease-in-out infinite; }
+html[data-fl-tv] .fl-toolbar .fl-vpn-power[aria-disabled="true"] { opacity: 1; }
+.fl-vpn-notice {
+    position: fixed;
+    z-index: 101;
+    top: 78px;
+    left: clamp(24px, 5vw, 56px);
+    max-width: min(520px, 60vw);
+    padding: 10px 16px;
+    border: 1px solid #ff6a5c;
+    border-radius: 14px;
+    background: #2a1210ee;
+    color: #fff;
+    font: 600 17px/1.5 sans-serif;
+    direction: rtl;
+    box-shadow: 0 8px 22px #0000007a;
+}
+.fl-vpn-notice[hidden] { display: none; }
 @keyframes fl-pulse { 50% { opacity: .35; } }
 
 /* Section headings */
@@ -1430,7 +1459,7 @@ html[data-fl-tv] .fl-favorite-card { border-radius: 12px; }
     .fl-resume-cue,
     .fl-dot { transition: none !important; }
     .fl-recs-enter,
-    .fl-vpn-state::before { animation: none !important; }
+    .fl-vpn-power .fl-icon { animation: none !important; }
     html[data-fl-tv] [data-fl-focus] { transform: none !important; }
 }
 

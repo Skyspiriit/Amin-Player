@@ -2,6 +2,7 @@ package com.enigma.farsilandtv
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Bitmap
 import android.graphics.Typeface
@@ -33,6 +34,8 @@ class LocalVpnImportActivity : Activity() {
     private lateinit var qr: ImageView
     private var qrBitmap: Bitmap? = null
     private lateinit var cancel: Button
+    private val free by lazy { intent.getBooleanExtra(FREE, false) }
+    private val certFor by lazy { intent.getStringExtra(CERT_FOR) }
     private val tick = object : Runnable {
         override fun run() {
             val server = session ?: return
@@ -90,7 +93,6 @@ class LocalVpnImportActivity : Activity() {
         content.addView(cancel, LinearLayout.LayoutParams(-1, dp(52)))
         setContentView(ScrollView(this).apply { addView(content); isFillViewport = true })
         cancel.requestFocus()
-        if (VpnStatus.current.phase !in setOf(VpnPhase.OFF, VpnPhase.ERROR)) { finish(); return }
         worker.execute {
             // Retire unused temporary identities from earlier private test builds only.
             runCatching {
@@ -128,15 +130,20 @@ class LocalVpnImportActivity : Activity() {
         if (!active.get()) { bytes.fill(0); return }
         try { worker.execute {
             val result = try { runCatching {
-                val value = VpnImport.text(LocalImportHttp.text(bytes))
-                if (!VpnImport.remote(value)) VpnEngine.nodes(value)
-                value
+                if (certFor != null) {
+                    // Kerio: only a PEM server certificate is accepted here.
+                    LocalImportHttp.text(bytes).trim().also { require(PlatformVpn.looksLikeCertificate(it)) }
+                } else {
+                    val value = VpnImport.text(LocalImportHttp.text(bytes))
+                    if (!VpnImport.remote(value)) VpnEngine.nodes(value)
+                    value
+                }
             } } finally { bytes.fill(0) }
             handler.post {
                 if (!active.get() || session?.closed != false) return@post
                 result.fold(onSuccess = { value -> confirm(value) }, onFailure = {
                     handler.removeCallbacks(tick)
-                    status.setText(R.string.vpn_local_invalid)
+                    status.setText(if (certFor != null) R.string.vpn_cert_invalid else R.string.vpn_local_invalid)
                     session?.retry()
                 })
             }
@@ -147,7 +154,7 @@ class LocalVpnImportActivity : Activity() {
         handler.removeCallbacks(tick)
         status.setText(R.string.vpn_local_received)
         confirmation = AlertDialog.Builder(this).setTitle(R.string.vpn_local_received)
-            .setMessage(if (VpnSecrets(this).configured()) R.string.vpn_local_replace else R.string.vpn_local_confirm)
+            .setMessage(if (certFor != null) R.string.vpn_cert_confirm else R.string.vpn_local_confirm)
             .setNegativeButton(android.R.string.cancel) { _, _ -> session?.retry(); tick.run() }
             .setPositiveButton(R.string.vpn_local_save) { _, _ -> save(value) }
             .setOnCancelListener { session?.retry(); tick.run() }
@@ -169,14 +176,24 @@ class LocalVpnImportActivity : Activity() {
         cancel.isEnabled = false
         status.setText(R.string.vpn_saving)
         worker.execute {
+            // Saving adds a profile; it never starts, stops or changes the current connection.
             val saved = runCatching {
-                check(active.get() && VpnStatus.current.phase in setOf(VpnPhase.OFF, VpnPhase.ERROR))
-                VpnSecrets(this).save(value)
-            }.isSuccess
+                check(active.get())
+                val target = certFor
+                if (target != null) {
+                    val store = VpnProfileStore(this)
+                    val profile = checkNotNull(store.get(target))
+                    val fields = VpnProfileStore.ikev2(profile.secret).copy(ca = value)
+                    store.update(target) { it.copy(secret = VpnProfileStore.ikev2Secret(fields)) }
+                    target
+                } else VpnSetupActivity.addXray(this, value, free).id
+            }.getOrNull()
             handler.post {
                 if (!active.get()) return@post
-                if (saved) { VpnStatus.stop(); setResult(RESULT_OK); finish() }
-                else { status.setText(R.string.vpn_save_failed); cancel.isEnabled = true }
+                if (saved != null) {
+                    setResult(RESULT_OK, Intent().putExtra(SAVED_ID, saved).putExtra(CERT_SAVED, certFor != null))
+                    finish()
+                } else { status.setText(R.string.vpn_save_failed); cancel.isEnabled = true }
             }
         }
     }
@@ -216,5 +233,9 @@ class LocalVpnImportActivity : Activity() {
 
     companion object {
         const val DRIVE_IMPORT = "drive-import"
+        const val FREE = "free-profile"
+        const val CERT_FOR = "certificate-for"
+        const val SAVED_ID = "saved-id"
+        const val CERT_SAVED = "certificate-saved"
     }
 }
