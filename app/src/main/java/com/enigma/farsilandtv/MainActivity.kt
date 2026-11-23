@@ -4,8 +4,6 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
-import android.media.AudioAttributes
-import android.media.SoundPool
 import android.provider.Settings
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.StateListDrawable
@@ -80,7 +78,7 @@ class MainActivity : Activity() {
     private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
     private val loadWindow = PageLoadWindow()
     private var prepareRetry: Runnable? = null
-    private var intro: IntroVideoView? = null
+    private var intro: IntroView? = null
     private lateinit var loadingScreen: LoadingView
     private val showLoadingScreen = Runnable {
         if (!ready && !failed && intro == null && !isFinishing && resumed) {
@@ -88,8 +86,6 @@ class MainActivity : Activity() {
         }
     }
     private var slowShown = false
-    private var introSound: SoundPool? = null
-    private var introSoundId = 0
     private val slowLoading = Runnable {
         if (!ready && !failed && !isFinishing) {
             message.setText(R.string.loading_slow)
@@ -130,7 +126,7 @@ class MainActivity : Activity() {
         if (resources.getBoolean(R.bool.amin_allow_screenshots)) WebView.setWebContentsDebuggingEnabled(true)
         // Quality is chosen per viewing (see connectPlayback); drop the old saved preference.
         playbackSettings.edit().remove("preferred_quality").apply()
-        root = FrameLayout(this).apply { setBackgroundColor(IntroVideoView.CHARCOAL) }
+        root = FrameLayout(this).apply { setBackgroundColor(IntroView.CHARCOAL) }
         createWebView()
         createStatus()
         setContentView(root)
@@ -152,7 +148,7 @@ class MainActivity : Activity() {
 
     private fun createWebView() {
         web = WebView(this).apply {
-            setBackgroundColor(IntroVideoView.CHARCOAL)
+            setBackgroundColor(IntroView.CHARCOAL)
             isFocusable = true
             isFocusableInTouchMode = true
             settings.apply {
@@ -560,23 +556,12 @@ class MainActivity : Activity() {
     }
 
     private fun startIntro() {
-        if (playbackSettings.getBoolean(INTRO_SOUND, true)) {
-            // Media stream: follows the media volume and is silent when it is muted.
-            introSound = SoundPool.Builder().setMaxStreams(1).setAudioAttributes(AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build().apply {
-                introSoundId = load(this@MainActivity, R.raw.intro_forge, 1)
-            }
-        }
-        // Always the full animation, even where Android's animations are off (decided for her box, 1.33).
-        intro = IntroVideoView(this, onSound = {
-            // SoundPool's "loaded" notice arrives on the main thread, which may still be busy starting the page;
-            // play() itself works as soon as the sound is decoded (and does nothing before).
-            val stream = if (introSoundId != 0 && resumed) introSound?.play(introSoundId, INTRO_VOLUME, INTRO_VOLUME, 1, 0, 1f) ?: 0 else 0
-            android.util.Log.i("AminIntro", if (stream != 0) "strike sound started" else "strike sound not ready")
-        }, onFormed = {
+        val mark = runCatching { BitmapFactory.decodeResource(resources, R.drawable.intro_mark) }.getOrNull() ?: return
+        // The strike follows the sound switch; it plays on the media stream (media volume, silent when muted).
+        val strike = if (playbackSettings.getBoolean(INTRO_SOUND, true)) IntroView.pcm(this, R.raw.intro_forge) else null
+        intro = IntroView(this, mark, strike, INTRO_VOLUME) {
             if (ready || failed) endIntro()
-        })
+        }
         root.addView(intro, FrameLayout.LayoutParams(-1, -1))
         intro?.requestFocus()
     }
@@ -588,13 +573,12 @@ class MainActivity : Activity() {
         view.stop()
         val finish: () -> Unit = {
             root.removeView(view)
-            introSound?.release()
-            introSound = null
+            view.release()
             if (status.visibility == View.VISIBLE) (if (retry.visibility == View.VISIBLE) retry else status).requestFocus()
             else web.requestFocus()
         }
         if (immediate) {
-            introSound?.autoPause()
+            view.release()
             finish()
         } else view.fadeOut(finish)
     }
@@ -958,7 +942,6 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         resumed = false
-        introSound?.autoPause()
         endIntro(immediate = true)
         handler.removeCallbacks(showLoadingScreen)
         loadingScreen.hide(immediate = true)
@@ -1017,9 +1000,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        intro?.release()
         intro = null
-        introSound?.release()
-        introSound = null
         closePlaybackPort()
         updater.close()
         hideFullscreen()
