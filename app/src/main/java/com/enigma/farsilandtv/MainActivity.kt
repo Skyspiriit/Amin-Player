@@ -90,7 +90,6 @@ class MainActivity : Activity() {
     private var slowShown = false
     private var introSound: SoundPool? = null
     private var introSoundId = 0
-    private var introSoundReady = false
     private val slowLoading = Runnable {
         if (!ready && !failed && !isFinishing) {
             message.setText(R.string.loading_slow)
@@ -567,13 +566,14 @@ class MainActivity : Activity() {
             introSound = SoundPool.Builder().setMaxStreams(1).setAudioAttributes(AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build().apply {
-                setOnLoadCompleteListener { _, _, state -> introSoundReady = state == 0 }
                 introSoundId = load(this@MainActivity, R.raw.intro_forge, 1)
             }
         }
         // Always the full animation, even where Android's animations are off (decided for her box, 1.33).
-        intro = IntroView(this, mark, reducedMotion = false, onImpact = {
-            if (introSoundReady && resumed) introSound?.play(introSoundId, INTRO_VOLUME, INTRO_VOLUME, 1, 0, 1f)
+        intro = IntroView(this, mark, reducedMotion = false, onSound = {
+            // SoundPool's "loaded" notice arrives on the main thread, which may still be busy starting the page;
+            // play() itself works as soon as the sound is decoded (and does nothing before).
+            if (introSoundId != 0 && resumed) introSound?.play(introSoundId, INTRO_VOLUME, INTRO_VOLUME, 1, 0, 1f)
         }, onFormed = {
             if (ready || failed) endIntro()
         })
