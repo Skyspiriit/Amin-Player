@@ -80,7 +80,7 @@ class MainActivity : Activity() {
     private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
     private val loadWindow = PageLoadWindow()
     private var prepareRetry: Runnable? = null
-    private var intro: IntroView? = null
+    private var intro: IntroVideoView? = null
     private lateinit var loadingScreen: LoadingView
     private val showLoadingScreen = Runnable {
         if (!ready && !failed && intro == null && !isFinishing && resumed) {
@@ -130,7 +130,7 @@ class MainActivity : Activity() {
         if (resources.getBoolean(R.bool.amin_allow_screenshots)) WebView.setWebContentsDebuggingEnabled(true)
         // Quality is chosen per viewing (see connectPlayback); drop the old saved preference.
         playbackSettings.edit().remove("preferred_quality").apply()
-        root = FrameLayout(this).apply { setBackgroundColor(IntroView.CHARCOAL) }
+        root = FrameLayout(this).apply { setBackgroundColor(IntroVideoView.CHARCOAL) }
         createWebView()
         createStatus()
         setContentView(root)
@@ -152,7 +152,7 @@ class MainActivity : Activity() {
 
     private fun createWebView() {
         web = WebView(this).apply {
-            setBackgroundColor(IntroView.CHARCOAL)
+            setBackgroundColor(IntroVideoView.CHARCOAL)
             isFocusable = true
             isFocusableInTouchMode = true
             settings.apply {
@@ -560,7 +560,6 @@ class MainActivity : Activity() {
     }
 
     private fun startIntro() {
-        val mark = runCatching { BitmapFactory.decodeResource(resources, R.drawable.intro_mark) }.getOrNull() ?: return
         if (playbackSettings.getBoolean(INTRO_SOUND, true)) {
             // Media stream: follows the media volume and is silent when it is muted.
             introSound = SoundPool.Builder().setMaxStreams(1).setAudioAttributes(AudioAttributes.Builder()
@@ -570,10 +569,11 @@ class MainActivity : Activity() {
             }
         }
         // Always the full animation, even where Android's animations are off (decided for her box, 1.33).
-        intro = IntroView(this, mark, reducedMotion = false, onSound = {
+        intro = IntroVideoView(this, onSound = {
             // SoundPool's "loaded" notice arrives on the main thread, which may still be busy starting the page;
             // play() itself works as soon as the sound is decoded (and does nothing before).
-            if (introSoundId != 0 && resumed) introSound?.play(introSoundId, INTRO_VOLUME, INTRO_VOLUME, 1, 0, 1f)
+            val stream = if (introSoundId != 0 && resumed) introSound?.play(introSoundId, INTRO_VOLUME, INTRO_VOLUME, 1, 0, 1f) ?: 0 else 0
+            android.util.Log.i("AminIntro", if (stream != 0) "strike sound started" else "strike sound not ready")
         }, onFormed = {
             if (ready || failed) endIntro()
         })

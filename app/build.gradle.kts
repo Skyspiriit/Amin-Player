@@ -15,8 +15,8 @@ android {
         applicationId = "com.enigma.farsilandtv"
         minSdk = 23
         targetSdk = 35
-        versionCode = 36
-        versionName = "1.35"
+        versionCode = 37
+        versionName = "1.36"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Optional device test build; normal builds still contain every supported ABI.
         // Review builds only (-PaminScreenshots=true): lets the VPN screens be captured. Releases keep them private.
