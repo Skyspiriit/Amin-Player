@@ -354,8 +354,17 @@ class VpnSetupActivity : Activity() {
             profile.name, parts.joinToString(" · "), dim = !profile.enabled) { profileActions(profile) }
     }
 
-    private fun ago(time: Long) = DateUtils.getRelativeTimeSpanString(time, System.currentTimeMillis(),
-        DateUtils.MINUTE_IN_MILLIS).toString()
+    /** Always Persian, whatever language the TV itself is set to. */
+    private fun ago(time: Long): String {
+        val minutes = ((System.currentTimeMillis() - time) / DateUtils.MINUTE_IN_MILLIS).coerceAtLeast(0)
+        val fa = java.util.Locale.forLanguageTag("fa")
+        return when {
+            minutes < 1 -> getString(R.string.vpn_ago_now)
+            minutes < 60 -> getString(R.string.vpn_ago_minutes, String.format(fa, "%d", minutes))
+            minutes < 24 * 60 -> getString(R.string.vpn_ago_hours, String.format(fa, "%d", minutes / 60))
+            else -> getString(R.string.vpn_ago_days, String.format(fa, "%d", minutes / (24 * 60)))
+        }
+    }
 
     private fun linkRow(free: Boolean): View {
         sections.addView(label(getString(if (free) R.string.vpn_free_link_title else R.string.vpn_link_title), 15f, tone.muted)

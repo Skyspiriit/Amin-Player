@@ -154,6 +154,10 @@
     <string name="vpn_profile_delete_confirm">«%1$s» برای همیشه از این دستگاه حذف شود؟ برای استفادهٔ دوباره باید آن را دوباره وارد کنید.</string>
     <string name="vpn_profile_busy">این VPN در حال استفاده است. ابتدا VPN را با دکمهٔ صفحهٔ خانه قطع کنید.</string>
     <string name="vpn_delete">حذف</string>
+    <string name="vpn_ago_now">همین حالا</string>
+    <string name="vpn_ago_minutes">%1$s دقیقه پیش</string>
+    <string name="vpn_ago_hours">%1$s ساعت پیش</string>
+    <string name="vpn_ago_days">%1$s روز پیش</string>
     <string name="vpn_reason_setup">تنظیمات ناقص</string>
     <string name="vpn_reason_subscription">اشتراک باز نشد</string>
     <string name="vpn_reason_network">وصل نشد</string>
