@@ -352,6 +352,7 @@ class MainActivity : Activity() {
             val saved = watchHistory.find(parsed.url)?.item
             val item = parsed.copy(next = parsed.next ?: saved?.next, series = parsed.series ?: saved?.series)
             watchItem = item
+            config.put("titleInfo", item.titleInfo?.json())
             previousEpisode = watchUrl(details.optString("previous"))
                 ?.takeIf { it != item.url && "/episodes/" in it && "/episodes/" in item.url }
                 ?.let { item.url to NextEpisode(it, details.optString("previousTitle").trim().take(180), false) }
@@ -365,6 +366,7 @@ class MainActivity : Activity() {
             val url = watchUrl(playbackReturn.orEmpty())
             val item = watchItem?.takeIf { it.url == url } ?: url?.let { watchHistory.find(it)?.item }
             watchItem = item
+            config.put("titleInfo", item?.titleInfo?.json())
             config.put("player", true).put("next", item?.next?.title?.ifBlank { "قسمت بعدی" })
                 .put("nextSeason", item?.next?.startsSeason == true)
                 .put("previous", previousEpisode?.takeIf { it.first == item?.url }?.second?.title?.ifBlank { "قسمت قبلی" })
@@ -698,6 +700,10 @@ class MainActivity : Activity() {
                 return WebResourceResponse("text/plain", null, 403, "Blocked", emptyMap(), "".byteInputStream())
             }
             if (request.method != "GET") return null
+            PlayerFonts.asset(url)?.let { asset ->
+                return WebResourceResponse("font/woff2", null, 200, "OK",
+                    mapOf("Cache-Control" to "public, max-age=31536000, immutable"), assets.open(asset))
+            }
             if (request.isForMainFrame && isFavoritesPage(url)) {
                 return screenShell("علاقه‌مندی", "")
             }

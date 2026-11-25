@@ -1,0 +1,7 @@
+Vazirmatn Regular and Bold, unmodified upstream webfonts.
+Copyright 2015 The Vazirmatn Project Authors.
+SIL Open Font License 1.1: see OFL.txt in this directory.
+Source: https://github.com/rastikerdar/vazirmatn
+Pinned source commit: 6e553e33489a8f9dfaccc76860a2e3f3c1e66de7
+Regular SHA-256: e382101336c6eb32cfb31381c027d02d2e0354bad08f6a395d4088beb3db3d91
+Bold SHA-256: 836fae7d42d83faa249bc00e0099592be98a1fa260d22d82f269b6091e585627

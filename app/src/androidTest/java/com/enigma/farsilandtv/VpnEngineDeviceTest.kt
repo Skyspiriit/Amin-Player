@@ -63,32 +63,34 @@ class VpnEngineDeviceTest {
 
     @Test fun subscriptionIsEncryptedByAndroidKeystoreAndCanBeForgotten() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val secrets = VpnSecrets(context)
-        assertFalse("Run this fixture only on a fresh VPN test installation", secrets.configured())
+        val store = VpnProfileStore(context)
+        assertTrue("Run this fixture only on a fresh VPN test installation", store.list().isEmpty())
         val fixtureUrl = "https://freesocks.org/sub/local-native-fixture"
+        var id: String? = null
         try {
-            secrets.save(fixtureUrl)
-            assertTrue(secrets.configured())
-            assertEquals(fixtureUrl, secrets.read())
-            val file = File(context.noBackupFilesDir, "vpn-subscription.enc")
+            id = VpnSetupActivity.addXray(context, fixtureUrl, false).id
+            assertTrue(store.configured())
+            assertEquals(fixtureUrl, store.get(id)?.secret)
+            val file = File(context.noBackupFilesDir, "vpn-profiles.enc")
             assertFalse(file.readBytes().toString(Charsets.ISO_8859_1).contains(fixtureUrl))
         } finally {
-            secrets.clear()
+            id?.let(store::remove)
         }
-        assertFalse(secrets.configured())
+        assertFalse(store.configured())
     }
 
     @Test fun inlineVlessFilesAreValidatedAndStoredWithoutAnExternalUrl() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val secrets = VpnSecrets(context)
-        assertFalse("Run this fixture before configuring a live VPN", secrets.configured())
+        val store = VpnProfileStore(context)
+        assertTrue("Run this fixture before configuring a live VPN", store.list().isEmpty())
+        var id: String? = null
         try {
-            secrets.save(FIXTURE)
-            assertEquals(FIXTURE, secrets.read())
-            assertFalse(VpnImport.remote(secrets.read()))
-            assertTrue(runCatching { secrets.save("<html>not a VPN file</html>") }.isFailure)
-            assertEquals(FIXTURE, secrets.read())
-        } finally { secrets.clear() }
+            id = VpnSetupActivity.addXray(context, FIXTURE, false).id
+            assertEquals(FIXTURE, store.get(id)?.secret)
+            assertFalse(VpnImport.remote(store.get(id)!!.secret))
+            assertTrue(runCatching { VpnSetupActivity.addXray(context, "<html>not a VPN file</html>", false) }.isFailure)
+            assertEquals(FIXTURE, store.get(id)?.secret)
+        } finally { id?.let(store::remove) }
     }
 
     private companion object {

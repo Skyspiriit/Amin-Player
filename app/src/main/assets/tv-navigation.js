@@ -66,6 +66,7 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
     var seasonLookupPending = false;
     var deferredWatch;
     var hideControlsTimer;
+    var playbackTitleTimer;
     var refreshTimer;
     var restored = false;
     var keyToRestore;
@@ -177,6 +178,7 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
     }
 
     function openOverlay(overlay, target, trigger) {
+        hidePlaybackTitle();
         overlay.hidden = false;
         overlay.flReturnFocus = trigger;
         select(target || q('button, a', overlay));
@@ -751,12 +753,91 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
             title: isMovie && detail ? detail.item.title : watchTitle(title ? title.textContent : document.title),
             poster: poster,
             series: series || null,
+            titleInfo: selectedPlaybackTitle(document, location.href),
             next: following && following.url,
             nextTitle: following && watchTitle(following.title || ''),
             nextSeason: !!(following && following.nextSeason),
             previous: previous ? previous.href : null,
             previousTitle: previous ? watchTitle(previous.title || '') : null
         };
+    }
+
+    function latinDigits(value) {
+        return String(value || '').replace(/[۰-۹٠-٩]/g, function (digit) {
+            var point = digit.charCodeAt(0);
+            return String(point >= 0x06f0 ? point - 0x06f0 : point - 0x0660);
+        });
+    }
+
+    // Explicit labels only: a missing season is unknown, never an assumed season 1.
+    function labelledEpisodeNumbers(value) {
+        var text = latinDigits(value);
+        var pair = /\b(?:Season|SE|S)\s*(\d{1,5})\s*(?:[-·,:]\s*)?(?:Episode|EP|E)\s*(\d{1,5})\b/i.exec(text) ||
+            /فصل\s*(\d{1,5})\s*(?:[-·،,:]\s*)?قسمت\s*(\d{1,5})/.exec(text);
+        var episode = /(?:\b(?:Episode|EP)\s*|قسمت\s*)(\d{1,5})\b/i.exec(text);
+        return {season: pair ? Number(pair[1]) : null,
+            episode: pair ? Number(pair[2]) : episode ? Number(episode[1]) : null};
+    }
+
+    function selectedPlaybackTitle(source, base) {
+        var path;
+        try { path = new URL(base).pathname; } catch (_) { return null; }
+        var movie = /^\/movies\/[^/]+\/?$/.test(path);
+        var episode = /^\/episodes\/[^/]+\/?$/.test(path);
+        if (!movie && !episode) return null;
+        var heading = q('#single .player-title, #single .sheader .data h1', source);
+        var text = heading && heading.textContent.trim();
+        if (!text) return null;
+        if (movie) {
+            // This is the film's visible release field, never generic datePublished/dateModified metadata.
+            var years = all('#single .sheader .extra .date, #single .sheader .extra .year', source).map(function (date) {
+                return numbersIn(date.textContent).find(function (n) { return (n >= 1900 && n <= 2100) || (n >= 1250 && n <= 1500); });
+            }).filter(Boolean).filter(function (year, index, list) { return list.indexOf(year) === index; });
+            return {kind: 'movie', title: detail && detail.item ? detail.item.title : text, year: years.length === 1 ? years[0] : null};
+        }
+        var series = episodeSeries(source, base);
+        var numbers = labelledEpisodeNumbers(text);
+        var named = null;
+        var row = all('.episodios .episodiotitle a[href]', source).find(function (anchor) {
+            try { var url = new URL(anchor.getAttribute('href'), base);
+                return catalogueLink(url, /^\/episodes\/[^/]+\/?$/) && url.pathname.replace(/\/$/, '') === path.replace(/\/$/, ''); }
+            catch (_) { return false; }
+        });
+        if (row) {
+            var item = row.closest('li');
+            var marker = item && q('.numerando', item);
+            var pair = /^\s*(\d{1,5})\s*[-–/]\s*(\d{1,5})\s*$/.exec(latinDigits(marker && marker.textContent));
+            var section = row.closest('.se-c');
+            var seasonMarker = section && q('.se-q .se-t', section);
+            var explicitSeason = seasonMarker && /^\s*\d{1,5}\s*$/.test(latinDigits(seasonMarker.textContent))
+                ? Number(latinDigits(seasonMarker.textContent).trim()) : null;
+            var rowEpisode = pair ? Number(pair[2]) : marker && /^\s*\d{1,5}\s*$/.test(latinDigits(marker.textContent))
+                ? Number(latinDigits(marker.textContent).trim()) : null;
+            var rowSeason = pair ? Number(pair[1]) : explicitSeason;
+            // Conflicting selected-page labels are omitted rather than guessed.
+            var conflict = rowEpisode !== null && numbers.episode !== null && rowEpisode !== numbers.episode;
+            numbers.episode = conflict ? null : rowEpisode !== null ? rowEpisode : numbers.episode;
+            numbers.season = conflict || (rowSeason !== null && numbers.season !== null && rowSeason !== numbers.season) ||
+                (pair && explicitSeason !== null && Number(pair[1]) !== explicitSeason) ? null
+                : rowSeason !== null ? rowSeason : numbers.season;
+            named = row.textContent.trim();
+            if (/^(?:(?:Season|SE)\s*\d+\s*)?(?:Episode|EP|قسمت)\s*\d+$/i.test(latinDigits(named)) ||
+                named === text || named === watchTitle(text)) named = null;
+        }
+        return {kind: 'episode', title: series && series.title ? series.title : text,
+            season: numbers.season, episode: numbers.episode, episodeTitle: named};
+    }
+
+    function playbackCaption(info) {
+        if (!info || (info.kind !== 'movie' && info.kind !== 'episode') || typeof info.title !== 'string' || !info.title.trim()) return null;
+        var labels = [];
+        if (info.kind === 'episode') {
+            if (Number.isInteger(info.season) && info.season >= 0 && info.season <= 99999) labels.push('فصل ' + persianNumber(info.season));
+            if (Number.isInteger(info.episode) && info.episode > 0 && info.episode <= 99999) labels.push('قسمت ' + persianNumber(info.episode));
+        } else if (Number.isInteger(info.year) && info.year >= 1000 && info.year <= 2100) labels.push(persianNumber(info.year));
+        return {title: info.title.trim(), detail: labels.join(' · '),
+            episodeTitle: info.kind === 'episode' && typeof info.episodeTitle === 'string' && info.episodeTitle.trim() !== info.title.trim()
+                ? info.episodeTitle.trim() : ''};
     }
 
     function numbersIn(text) {
@@ -1724,12 +1805,14 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
 
     function mountRecommendations() {
         if (!isHome || recs || !toolbar) return;
-        var pool = recPool();
-        if (!pool.length) return;
+        var groups = recommendationGroups(recPool(), verifiedLinkAdditions(), Date.now());
+        var pool = groups.suggestions;
+        if (!pool.length && !groups.recent.length && !groups.week.length) return;
         var section = make('section', '', 'fl-recs');
+        section.hidden = !pool.length;
         section.dir = 'rtl';
         var head = make('div', '', 'fl-recs-head');
-        var heading = make('h2', 'پیشنهادها');
+        var heading = make('h2', 'پیشنهاد برای تماشا');
         heading.id = 'fl-recs-heading';
         section.setAttribute('aria-labelledby', heading.id);
         head.appendChild(heading);
@@ -1746,6 +1829,8 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
             if (title && /^(?:Featured Titles|پیشنهادها)$/.test(title.textContent.trim())) siteHeader.classList.add('fl-replaced');
         });
         document.body.insertBefore(section, continueRow ? continueRow.nextSibling : toolbar.nextSibling);
+        mountDatedRecommendations(groups.recent, 'تازه اضافه‌شده — ۴۸ ساعت اخیر', 'fl-fresh-48h', section);
+        mountDatedRecommendations(groups.week, 'تازه‌های هفته', 'fl-fresh-week', section);
         recs = {section: section, row: row, dots: dots, pool: pool, size: 4, start: 0, remaining: REC_INTERVAL, inside: false};
         // Returning from a title shows its group again; otherwise each visit starts at the next group.
         var back = keyToRestore.indexOf('link:') === 0 ? pool.findIndex(function (item) {
@@ -1758,8 +1843,55 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
             try { localStorage.setItem('fl:recs-visit', String(visit + 1)); } catch (_) {}
             start = pool.length > recs.size ? (visit * recs.size) % pool.length : 0;
         }
-        renderRecs(start, null, 'fade');
+        if (pool.length) renderRecs(start, null, 'fade');
         window.setInterval(recTick, 1000);
+    }
+
+    // Public WP dates describe page publication/editing; the site's VideoObject uploadDate is
+    // labelled Release Date. Neither establishes when a playable link was attached. Keep this
+    // source unavailable until a real link-addition contract is verified; first-seen is not one.
+    function verifiedLinkAdditions() { return null; }
+
+    function recommendationKey(value) {
+        try {
+            var url = new URL(value);
+            if (!knownUrl(value) || url.hostname.replace(/^www\./, '') !== 'farsiland.com' ||
+                !/^\/(?:movies|episodes|tvshows)\/[^/]+\/?$/.test(url.pathname)) return null;
+            return catalogue + url.pathname.replace(/\/$/, '') + '/';
+        } catch (_) { return null; }
+    }
+
+    function recommendationGroups(pool, verifiedAdded, now) {
+        var seen = Object.create(null), recent = [], week = [], suggestions = [];
+        pool.forEach(function (item) {
+            var key = recommendationKey(item.url);
+            if (!key || seen[key]) return;
+            seen[key] = true;
+            var at = verifiedAdded && verifiedAdded[key];
+            var age = now - at;
+            // Only the explicitly verified source map may supply UTC millisecond timestamps.
+            // Page dates, release years and local firstSeen fields are deliberately ignored.
+            if (/\/(?:movies|episodes)\//.test(key) && typeof at === 'number' && Number.isFinite(at) && at > 0 && age >= 0 && age <= 7 * 86400000) {
+                (age <= 2 * 86400000 ? recent : week).push({item: item, at: at});
+            } else suggestions.push(item);
+        });
+        function sorted(items) { return items.sort(function (a, b) { return b.at - a.at; }).map(function (entry) { return entry.item; }); }
+        return {recent: sorted(recent), week: sorted(week), suggestions: suggestions};
+    }
+
+    function mountDatedRecommendations(items, title, id, before) {
+        if (!items.length) return; // No empty headings and no first-visit "new" labels.
+        var section = make('section', '', 'fl-recs fl-fresh-recs');
+        section.id = id;
+        section.dir = 'rtl';
+        var heading = make('h2', title);
+        heading.id = id + '-heading';
+        section.setAttribute('aria-labelledby', heading.id);
+        section.appendChild(heading);
+        var row = make('div', '', 'fl-recs-row');
+        items.forEach(function (item) { row.appendChild(recCard(item)); });
+        section.appendChild(row);
+        document.body.insertBefore(section, before);
     }
 
     function connectPlayback(event) {
@@ -1803,6 +1935,7 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
                 next: config.next,
                 previous: config.previous,
                 allEpisodes: config.allEpisodes === true,
+                titleInfo: config.titleInfo || null,
                 nextSeason: config.nextSeason === true,
                 autoPlay: config.startVideo === true,
                 playing: !config.resume || config.resume.playing !== false,
@@ -2067,11 +2200,32 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
         playUi.bar.classList.remove('fl-controls-hidden');
         window.clearTimeout(hideControlsTimer);
         var video = sourceVideo();
+        if (video && !video.ended) revealPlaybackTitle();
+        else hidePlaybackTitle();
         if (video && !video.paused && !video.ended && !playUi.status.textContent) {
             hideControlsTimer = window.setTimeout(function () {
                 if (playUi) playUi.bar.classList.add('fl-controls-hidden');
             }, 6500);
         }
+    }
+
+    function hidePlaybackTitle() {
+        window.clearTimeout(playbackTitleTimer);
+        if (!playUi || !playUi.info) return;
+        playUi.info.classList.remove('fl-title-visible');
+        playUi.info.setAttribute('aria-hidden', 'true');
+    }
+
+    function revealPlaybackTitle() {
+        var caption = playbackCaption(playback && playback.titleInfo);
+        if (!caption || !playUi || !playUi.info || overlay()) { hidePlaybackTitle(); return; }
+        playUi.infoTitle.textContent = caption.title;
+        playUi.infoDetail.textContent = caption.detail;
+        playUi.infoEpisode.textContent = caption.episodeTitle;
+        playUi.info.classList.add('fl-title-visible');
+        playUi.info.setAttribute('aria-hidden', 'false');
+        window.clearTimeout(playbackTitleTimer);
+        playbackTitleTimer = window.setTimeout(hidePlaybackTitle, 5000);
     }
 
     function updatePlayUi() {
@@ -2114,6 +2268,8 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
         if (playUi && playUi.root === root && playUi.bar.isConnected) return;
         if (playUi) {
             window.clearTimeout(playUi.seekTimer);
+            hidePlaybackTitle();
+            if (playUi.info) playUi.info.remove();
             playUi.bar.remove();
         }
         root.classList.add('fl-player-root');
@@ -2171,8 +2327,20 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
         bar.appendChild(scrubRow);
         bar.appendChild(controls);
         root.appendChild(bar);
+        var info = make('section', '', 'fl-playback-title');
+        info.dir = 'rtl';
+        info.setAttribute('aria-hidden', 'true');
+        info.setAttribute('role', 'note');
+        var infoTitle = make('div', '', 'fl-title-name');
+        infoTitle.dir = 'auto';
+        var infoDetail = make('div', '', 'fl-title-detail');
+        var infoEpisode = make('div', '', 'fl-title-episode');
+        infoEpisode.dir = 'auto';
+        [infoTitle, infoDetail, infoEpisode].forEach(function (part) { info.appendChild(part); });
+        root.appendChild(info);
         playUi = { root: root, bar: bar, status: status, play: play, full: full, quality: quality, time: time, timeline: timeline, preview: null,
-            next: nextEpisode, previous: previousEpisode, episodes: episodeList };
+            next: nextEpisode, previous: previousEpisode, episodes: episodeList,
+            info: info, infoTitle: infoTitle, infoDetail: infoDetail, infoEpisode: infoEpisode };
         hidePlayerLoading();
         if (!overlay() && (!current || current.closest('.fl-toolbar') || !visible(current))) select(play);
         updatePlayUi();
@@ -2274,6 +2442,7 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
     }
 
     function back() {
+        hidePlaybackTitle();
         if (dismissNextEpisode()) return true;
         if (continueDialog && !continueDialog.hidden) {
             closeContinueDialog();
@@ -2384,6 +2553,7 @@ function installFarsiLandTv(css, versionName, themeName, startup) {
     }, true);
     window.addEventListener('message', connectPlayback);
     window.addEventListener('pagehide', function () {
+        hidePlaybackTitle();
         dismissNextEpisode();
         deferredWatch = null;
         reportProgress(true);

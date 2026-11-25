@@ -1,3 +1,12 @@
+@font-face {
+    font-family: 'Amin Vazirmatn'; font-style: normal; font-weight: 400; font-display: swap;
+    src: url('/__amin-player__/fonts/v33/Vazirmatn-Regular.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Amin Vazirmatn'; font-style: normal; font-weight: 700; font-display: swap;
+    src: url('/__amin-player__/fonts/v33/Vazirmatn-Bold.woff2') format('woff2');
+}
+
 /* Themes (1.32): three themes with their own surfaces, lighting and focus colour. "cinema" is the default. */
 html[data-fl-tv],
 html[data-fl-tv][data-fl-theme="cinema"] {
@@ -686,6 +695,42 @@ html[data-fl-tv] a.fl-quality { margin: 5px; min-width: 92px; }
 .fl-quality-options [aria-pressed="true"]:not([data-fl-focus]) { border-color: var(--fl-accent); }
 
 .fl-player-root { position: relative; }
+
+.fl-playback-title {
+    position: absolute; z-index: 35;
+    top: clamp(16px, 4vh, 40px); right: clamp(20px, 4vw, 64px);
+    box-sizing: border-box; width: max-content; max-width: min(76%, 780px); max-height: 48%;
+    display: flex; flex-direction: column; gap: 5px;
+    padding: 14px 22px; overflow: hidden;
+    border: 1px solid #f5ca754d; border-right: 3px solid #f5ca75; border-radius: 14px;
+    background: linear-gradient(115deg, #0c1016e8, #0c1016cf);
+    box-shadow: 0 8px 26px #0008;
+    color: #fff; text-align: right; font-family: 'Amin Vazirmatn', sans-serif;
+    pointer-events: none; user-select: none;
+    opacity: 0; visibility: hidden; transform: translateY(-6px);
+    transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
+}
+.fl-playback-title.fl-title-visible { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+.fl-title-name {
+    color: #fff; font-size: clamp(28px, 3.7vw, 44px); font-weight: 700; line-height: 1.4;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+    overflow: hidden; overflow-wrap: anywhere; white-space: normal; min-height: 0; flex: 0 1 auto;
+    unicode-bidi: plaintext; text-shadow: 0 2px 5px #000b;
+}
+.fl-title-detail { color: #ffda83; font-size: clamp(24px, 2.7vw, 34px); font-weight: 700; line-height: 1.4; flex: 0 0 auto; }
+.fl-title-episode {
+    color: #fff; font-size: clamp(20px, 2.2vw, 27px); line-height: 1.4; font-weight: 400;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden; overflow-wrap: anywhere; unicode-bidi: plaintext; min-height: 0;
+}
+.fl-title-detail:empty, .fl-title-episode:empty { display: none; }
+.fl-player-root:not([data-fl-full]):not(:fullscreen) .fl-playback-title { top: 12px; right: 3%; padding: 9px 15px; }
+.fl-player-root:not([data-fl-full]):not(:fullscreen) .fl-title-name { font-size: clamp(23px, 3vw, 34px); -webkit-line-clamp: 2; }
+.fl-player-root:not([data-fl-full]):not(:fullscreen) .fl-title-detail { font-size: clamp(20px, 2.4vw, 28px); }
+.fl-player-root:not([data-fl-full]):not(:fullscreen) .fl-title-episode { font-size: clamp(18px, 2vw, 22px); -webkit-line-clamp: 1; }
+@media (prefers-reduced-motion: reduce) {
+    .fl-playback-title { transition: none; transform: none; }
+}
 
 .fl-player-root video::-webkit-media-controls {
     display: none !important;
