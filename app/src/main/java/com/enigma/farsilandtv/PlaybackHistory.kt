@@ -53,12 +53,13 @@ internal data class WatchItem(
     val poster: String?,
     val next: NextEpisode?,
     val series: LibraryTitle? = null,
+    val titleInfo: PlaybackTitle? = null,
 ) {
     val libraryKey get() = series?.url ?: url
 
     fun json() = JSONObject().put("url", url).put("title", title).put("poster", poster)
         .put("next", next?.url).put("nextTitle", next?.title).put("nextSeason", next?.startsSeason)
-        .put("series", series?.json())
+        .put("series", series?.json()).apply { titleInfo?.let { put("titleInfo", it.json()) } }
 
     companion object {
         fun fromPage(page: String, details: JSONObject): WatchItem? {
@@ -71,7 +72,7 @@ internal data class WatchItem(
                 ?.let { NextEpisode(it, details.optString("nextTitle").trim().take(180), details.optBoolean("nextSeason")) }
             val series = details.optJSONObject("series")?.let(LibraryTitle::fromJson)
                 ?.takeIf { "/episodes/" in url && "/tvshows/" in it.url }
-            return WatchItem(url, title, poster, next, series)
+            return WatchItem(url, title, poster, next, series, PlaybackTitle.fromJson(url, details.optJSONObject("titleInfo")))
         }
     }
 }
